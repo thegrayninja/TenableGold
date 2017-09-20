@@ -3,8 +3,13 @@
 ##identify agents that do not belong to a group
 ##save them to their own OS file, hostname only.
 #
-#ver 0.2.0 - removing support for python 2.x and older
+#Current Version: 0.2.1
+#Version Notes: adding remaining Enter to Continue statements, DeleteStaleAgents(), 
+#               DeleteLastCheckedIn(), GetAllAgentCount()
 #
+#Version History
+#ver 0.2.0 - removing support for python 2.x and older
+#ver 0.2.1 - first stab at combining all useful scripts
 
 
 import requests
@@ -125,9 +130,95 @@ def AddAgentsToGroup():
 		is_in(AgentIP, AgentID, AgentName, UserGroupSelection, AgentHostnames)
 		Counter += 1
 	print(added_count)
-	
+	ToContinue = input("\nPress Return/Enter to Continue...")
+	menu()	
 
-	
+
+def DeleteStaleAgents():
+	#agents that are part of a group which have not scanned within 60 days
+	ListDeletedAgents = ""
+	DeletedCount = 0
+	TimeDiff = 7872650 #roughly 60 days
+	Counter = 0
+	AgentInfo = GetAgentsInformation()
+	for i in (AgentInfo["agents"]):
+		AgentIP = AgentInfo["agents"][Counter]["ip"]
+		AgentName = AgentInfo["agents"][Counter]["name"]	
+		AgentID = AgentInfo["agents"][Counter]["id"]
+		LastScanned = (AgentInfo["agents"][Counter]["last_scanned"])
+		
+		if (AgentInfo["agents"][Counter]["groups"] == None):
+			continue
+		elif (LastScanned == None):
+			continue
+		elif (LastScanned + TimeDiff) < time.time():
+			CurrentTime = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))
+			LastScannedTime = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(LastScanned))
+			URL = 'https://cloud.tenable.com/scanners/1/agents/%s' % (AgentID)
+			DeleteAgent = requests.delete(URL, headers=tenable_header)
+			#TestDeleteAgent = requests.get(URL, headers=tenable_header)
+			ListDeletedAgents = ("%s (%s) was deleted at %s. Last Scanned at %s" %(AgentName, AgentIP, CurrentTime, LastScannedTime))
+			DeletedAgentsFile = open("DeletedStaleAssets.log", "a")
+			DeletedAgentsFile.write("%s\n" % (ListDeletedAgents))
+			DeletedAgentsFile.close()
+			print(ListDeletedAgents)		
+			time.sleep(.3)
+			DeletedCount += 1
+		Counter +=1
+	print("\n%d Agents have been deleted" % (DeletedCount))
+	print("You can review the deleted assets in DeletedStaleAssets.log")
+	ToContinue = input("\nPress Return/Enter to Continue...")
+	menu()	
+
+
+def DeleteLastCheckedIn():
+	#all agents which have not checkedin within 60 days
+	ListDeletedAgents = ""
+	DeletedCount = 0
+	TimeDiff = 7872650 #roughly 60 days
+	Counter = 0
+	AgentInfo = GetAgentsInformation()
+	for i in (AgentInfo["agents"]):
+		AgentName = AgentInfo["agents"][Counter]["name"]	
+		AgentID = AgentInfo["agents"][Counter]["id"]
+		AgentIP = AgentInfo["agents"][Counter]["ip"]
+		LastChecked = AgentInfo["agents"][Counter]["last_connect"]
+		if LastChecked != None:
+			if (LastChecked + TimeDiff) < time.time():
+				LastCheckedTime = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(LastChecked))
+				#print("%s - %s" % (AgentName, LastCheckedTime))
+
+				CurrentTime = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))
+				LastCheckedTime = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(LastChecked))
+				URL = 'https://cloud.tenable.com/scanners/1/agents/%s' % (AgentID)
+				DeleteAgent = requests.delete(URL, headers=tenable_header)
+				#TestDeleteAgent = requests.get(URL, headers=tenable_header)
+				ListDeletedAgents = ("%s (%s) was deleted at %s. Last Checked-in at %s" %(AgentName, AgentIP, CurrentTime, LastCheckedTime))
+				DeletedAgentsFile = open("DeletedDisconnectedAssets.log", "a")
+				DeletedAgentsFile.write("%s\n" % (ListDeletedAgents))
+				DeletedAgentsFile.close()
+				print(ListDeletedAgents)		
+				time.sleep(.3)
+				DeletedCount += 1
+		Counter += 1
+	print("\n%d Agents have been deleted" % (DeletedCount))
+	print("You can review the deleted assets in DeletedDisconnectedAssets.log")
+	ToContinue = input("\nPress Return/Enter to Continue...")
+	menu()
+	return 0
+
+
+def GetAllAgentCount():
+	AgentInfo = GetAgentsInformation()
+	TotalAgents = 0
+	for i in (AgentInfo["agents"]):
+		TotalAgents += 1
+	print("\nThere are a total of %d Agents" % (TotalAgents))
+	ToContinue = input("\nPress Return/Enter to Continue...")
+	menu()
+	return 0
+
+
 
 def SaveAgentsToFile(data, filename):
 	TempFile= open(filename, "w") 
@@ -152,29 +243,36 @@ def ReadImportedFile():
 def menu():
 	print("\n\n\nAvailable Options\n")
 	print("1\tView Unassigned Agents")
-	print("2\tDelete Stale Agents")
-	print("3\tDelete Offline Agents")
+	print("2\tDelete Agents - Last Scanned over 60 days ago")
+	print("3\tDelete Agents - Last Checked-In over 60 days ago")
 	print("4\tAdd Agents to Group (via hostname)")
+	print("5\tGet Count of All Agents")
 	print("\nq\tQuit  (or CTRL+C at any time)\n\n")
 	UserResponse = input("Please make your selection: ")
 
 	if UserResponse == "1":
 		print(AgentGroupExist())
+	elif UserResponse == "2":
+		DeleteStaleAgents()
+	elif UserResponse == "3":
+		DeleteLastCheckedIn()
 	elif UserResponse == "4":
 		AddAgentsToGroup()
+	elif UserResponse == "5":
+		GetAllAgentCount()
 	elif UserResponse == "q":
 		sys.exit(0)
 	
 	else:
 		menu()
 
-#TODO Create Menu content for 2, 3, and 4
+#TODO Create Menu content for 2, 3
 
 
 def main():
 	CheckPythonVersion()
 	print("\n\n\n\n\t\tWelcome To Tenable - Gold!\n")
-	print("\t\tThe number 1 API for Tenable.io")
+	print("\t\tThe Number 1 API Utility for Tenable.io")
 	menu()
 
 
