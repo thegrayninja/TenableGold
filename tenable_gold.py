@@ -14,6 +14,7 @@
 
 import requests
 import time, sys, os
+import subprocess, platform
 
 from auth_file import tenable_header
 
@@ -220,14 +221,52 @@ def GetAllAgentCount():
 
 
 def DownloadAgentInstallers():
-    SaveFolder = r'.\Agents'
-    if not os.path.exists(SaveFolder):
-        os.makedirs(SaveFolder)
+
     #TODO copy/paste Download Agent code here
-    AgentVersion = input("Please enter the Agent Version (Ex: blahblah):")
+    AgentList = ["-amzn.x86_64.rpm", "-debian6_amd64.deb", "-es5.x86_64.rpm",
+                  "-es6.x86_64.rpm", "-es7.x86_64.rpm", "-fc20.x86_64.rpm",
+                  "-suse11.x86_64.rpm", "-suse12.x86_64.rpm", "-ubuntu910_amd64.deb",
+                  "-ubuntu1110_amd64.deb", ".dmg", "-x64.msi"]
+
+    AgentVersion = input("Please enter the Agent Version (Ex: NessusAgent-6.11.1):")
+    print("\nNOTE: You must enter the License Agreement Cookie. No way around this that I have discovered.")
+    print("To get your cookie, go here: http://www.tenable.com/products/nessus/select-your-operating-system#tos")
+    print("and click on any file to download. Accept the terms, then right-click the Download button and copy ")
+    print("the link. The end of the string will contain the cookie. Copy it and paste in the field below.\n")
+    TenableCookie = (input("Enter License Agreement Cookie (Ex: 1ea0fe39437453a7e12a12115194e8e5):")).strip()
+    OSVersion = (platform.system())
+    if "Windows" in OSVersion:
+        ##TODO For Windows --doesn't work
+        SaveFolder = r'.\Agents'
+        if not os.path.exists(SaveFolder):
+            os.makedirs(SaveFolder)
+        AgentList = "-x64.msi"
+        for Agent in AgentList:
+            AgentFileName = AgentVersion.strip() + Agent.strip()
+            PSDownloadCommand = 'Invoke-WebRequest -OutFile %s -URI "http://downloads.nessus.org/nessus3dl.php?file=%s&licence_accept=yes&t=%s"' % (AgentFileName, AgentFileName, TenableCookie)
+            subprocess.call(["powershell.exe", PSDownloadCommand])
+
+        print("\n\n\n\t\t**Download is complete**")
+        print("\nPlease view your agent installer files here: .\Agents\\")
+        print("\n\n**Note: Windows version may not actually download any files. Still a work in progress.")
+
+    else:
+        ##TODO For Linux
+        SaveFolder = r'./Agents'
+        if not os.path.exists(SaveFolder):
+            os.makedirs(SaveFolder)
+
+        for Agent in AgentList:
+            AgentFileName = AgentVersion.strip() + Agent.strip()
+            WgetFormat = 'wget --no-check-certificate -O %s/%s "http://downloads.nessus.org/nessus3dl.php?file=%s&licence_accept=yes&t=%s"' % (SaveFolder, AgentFileName, AgentFileName, TenableCookie)
+            os.system(WgetFormat)
+
+        print("\n\n\n\t\t**Download is complete**")
+        print("\nPlease view your agent installer files here: ./Agents/")
 
     input("\nPress Return/Enter to Continue...")
     menu()
+    return(0)
 
 def SaveAgentsToFile(data, filename):
     TempFile= open(filename, "w")
