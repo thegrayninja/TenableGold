@@ -13,7 +13,7 @@
 
 
 import requests
-import time, sys
+import time, sys, os
 
 from auth_file import tenable_header
 
@@ -21,261 +21,273 @@ from auth_file import tenable_header
 added_count = 0
 
 def CheckPythonVersion():
-	PyVerTuple = sys.version_info[:1]
-	if PyVerTuple[0] > 2:
-		return 0
-	else:
-		print("\n\nPlease run Python 3.x or newer\n")
-		sys.exit(1)
+    PyVerTuple = sys.version_info[:1]
+    if PyVerTuple[0] > 2:
+        return 0
+    else:
+        print("\n\nPlease run Python 3.x or newer\n")
+        sys.exit(1)
 
 
 
 def GetGroupInformation():
-	return((requests.get('https://cloud.tenable.com/scanners/1/agent-groups', headers=tenable_header)).json())
+    return((requests.get('https://cloud.tenable.com/scanners/1/agent-groups', headers=tenable_header)).json())
 
 
 
 def GetAgentsInformation():
-	url = 'https://cloud.tenable.com/scanners/1/agents/'
-	return((requests.get(url, headers=tenable_header)).json())
+    url = 'https://cloud.tenable.com/scanners/1/agents/'
+    return(requests.get(url, headers=tenable_header)).json()
 
 
 
 ##NOTE For AgentGroupExist
 def AgentGroupExist():
-	LinuxAgentGroupNull = ""
-	MacAgentGroupNull = ""
-	UnknownAgentGroupNull = ""
-	WindowsAgentGroupNull = ""
-	counter = 0
-	TotalUnassigned = 0
-	AgentInfo = GetAgentsInformation()
-	for i in (AgentInfo["agents"]):
-		if (AgentInfo["agents"][counter]["groups"] == None):
-			AgentName = AgentInfo["agents"][counter]["name"]
-			AgentOS = AgentInfo["agents"][counter]["platform"]
-			if ("DARWIN" in AgentOS):
-				MacAgentGroupNull += "%s\n" % (AgentName)
-				TotalUnassigned += 1
-			elif ("LINUX" in AgentOS):
-				LinuxAgentGroupNull += "%s\n" % (AgentName)
-				TotalUnassigned += 1
-			elif ("Windows" in AgentOS):
-				WindowsAgentGroupNull += "%s\n" % (AgentName)
-				TotalUnassigned += 1
-			else:
-				UnknownAgentGroupNull += "%s\n" % (AgentName)
-				TotalUnassigned += 1
-		
-		counter += 1
+    LinuxAgentGroupNull = ""
+    MacAgentGroupNull = ""
+    UnknownAgentGroupNull = ""
+    WindowsAgentGroupNull = ""
+    counter = 0
+    TotalUnassigned = 0
+    AgentInfo = GetAgentsInformation()
+    for i in (AgentInfo["agents"]):
+        if AgentInfo["agents"][counter]["groups"] == None:
+            AgentName = AgentInfo["agents"][counter]["name"]
+            AgentOS = AgentInfo["agents"][counter]["platform"]
+            if "DARWIN" in AgentOS:
+                MacAgentGroupNull += "%s\n" % AgentName
+                TotalUnassigned += 1
+            elif "LINUX" in AgentOS:
+                LinuxAgentGroupNull += "%s\n" % AgentName
+                TotalUnassigned += 1
+            elif "Windows" in AgentOS:
+                WindowsAgentGroupNull += "%s\n" % AgentName
+                TotalUnassigned += 1
+            else:
+                UnknownAgentGroupNull += "%s\n" % AgentName
+                TotalUnassigned += 1
 
-	SaveAgentsToFile(LinuxAgentGroupNull, "LinuxAgentGroupNull.txt")
-	SaveAgentsToFile(MacAgentGroupNull, "MacAgentGroupNull.txt")
-	SaveAgentsToFile(UnknownAgentGroupNull, "UnknownAgentGroupNull.txt")
-	SaveAgentsToFile(WindowsAgentGroupNull, "WindowsAgentGroupNull.txt")	
-	print("\nData has been saved")
-	print("\nA total of %s agents do not belong to a group" % (TotalUnassigned))
-	print("\nPlease review the following files for additional information:")
-	print("\t./LinuxAgentGroupNull.txt\n\t./MacAgentGroupNull.txt\n\t./WindowsAgentGroupNull.txt")
-	print("\t./UnknownAgentGroupNull.txt")
-	ToContinue = input("\nPress Return/Enter to Continue...")
-	menu()	
-	return(0)
+        counter += 1
+
+    SaveAgentsToFile(LinuxAgentGroupNull, "LinuxAgentGroupNull.txt")
+    SaveAgentsToFile(MacAgentGroupNull, "MacAgentGroupNull.txt")
+    SaveAgentsToFile(UnknownAgentGroupNull, "UnknownAgentGroupNull.txt")
+    SaveAgentsToFile(WindowsAgentGroupNull, "WindowsAgentGroupNull.txt")
+    print("\nData has been saved")
+    print("\nA total of %s agents do not belong to a group" % TotalUnassigned)
+    print("\nPlease review the following files for additional information:")
+    print("\t./LinuxAgentGroupNull.txt\n\t./MacAgentGroupNull.txt\n\t./WindowsAgentGroupNull.txt")
+    print("\t./UnknownAgentGroupNull.txt")
+    input("\nPress Return/Enter to Continue...")
+    menu()
+    return(0)
 
 
 
 def ShowGroups():
-	GroupInfo = GetGroupInformation()
-	counter = 0
-	for i in (GroupInfo["groups"]):
-		GroupName = GroupInfo["groups"][counter]["name"]
-		GroupID = GroupInfo["groups"][counter]["id"]
-		print("ID: %s\tName: %s" %(GroupID, GroupName))
-		counter += 1
+    GroupInfo = GetGroupInformation()
+    counter = 0
+    for i in (GroupInfo["groups"]):
+        GroupName = GroupInfo["groups"][counter]["name"]
+        GroupID = GroupInfo["groups"][counter]["id"]
+        print("ID: %s\tName: %s" %(GroupID, GroupName))
+        counter += 1
 
 
 ##NOTE For AddAgentsToGroup
 ##TODO Update this function..name is lame and variables are jacked
 def is_in(agentip, agentid, agentname, UserGroupSelection, AgentHostnames):
-	#global import_search_strings	
-	#global search_group_id
-	for ss in AgentHostnames:
-		search_string = ss.strip()
-		if search_string in agentname:
-			url = 'https://cloud.tenable.com/scanners/1/agent-groups/%s/agents/%s' % (UserGroupSelection, agentid)
-			temp_container = requests.put(url, headers=tenable_header)
-			newentry = ("%s - %s was added to the group %s" % (agentip, agentname, UserGroupSelection))		
-			newFile = open("tenable_added_to_group.log", "a")
-			newFile.write("%s\n" % (newentry))
-			newFile.close()		
-			print (newentry)
-			time.sleep(.3)		
-			global added_count
-			added_count += 1
+    #global import_search_strings
+    #global search_group_id
+    for ss in AgentHostnames:
+        search_string = ss.strip()
+        if search_string in agentname:
+            url = 'https://cloud.tenable.com/scanners/1/agent-groups/%s/agents/%s' % (UserGroupSelection, agentid)
+            temp_container = requests.put(url, headers=tenable_header)
+            newentry = ("%s - %s was added to the group %s" % (agentip, agentname, UserGroupSelection))
+            newFile = open("tenable_added_to_group.log", "a")
+            newFile.write("%s\n" % (newentry))
+            newFile.close()
+            print (newentry)
+            time.sleep(.3)
+            global added_count
+            added_count += 1
 
 
 def AddAgentsToGroup():
-	AgentHostnames = ReadImportedFile()	
-	ShowGroups()
-	UserGroupSelection = input("Please Enter Group ID: ")
+    AgentHostnames = ReadImportedFile()
+    ShowGroups()
+    UserGroupSelection = input("Please Enter Group ID: ")
 
-	AgentInfo = GetAgentsInformation()
-	Counter = 0
-	Results = ""
-	AgentsScanned = ""
-	for i in (AgentInfo["agents"]):
-		AgentIP = AgentInfo["agents"][Counter]["ip"]
-		AgentName = AgentInfo["agents"][Counter]["name"]	
-		AgentID = AgentInfo["agents"][Counter]["id"]
-		is_in(AgentIP, AgentID, AgentName, UserGroupSelection, AgentHostnames)
-		Counter += 1
-	print(added_count)
-	ToContinue = input("\nPress Return/Enter to Continue...")
-	menu()	
+    AgentInfo = GetAgentsInformation()
+    Counter = 0
+    Results = ""
+    AgentsScanned = ""
+    for i in (AgentInfo["agents"]):
+        AgentIP = AgentInfo["agents"][Counter]["ip"]
+        AgentName = AgentInfo["agents"][Counter]["name"]
+        AgentID = AgentInfo["agents"][Counter]["id"]
+        is_in(AgentIP, AgentID, AgentName, UserGroupSelection, AgentHostnames)
+        Counter += 1
+    print(added_count)
+    input("\nPress Return/Enter to Continue...")
+    menu()
 
 
 def DeleteStaleAgents():
-	#agents that are part of a group which have not scanned within 60 days
-	ListDeletedAgents = ""
-	DeletedCount = 0
-	TimeDiff = 7872650 #roughly 60 days
-	Counter = 0
-	AgentInfo = GetAgentsInformation()
-	for i in (AgentInfo["agents"]):
-		AgentIP = AgentInfo["agents"][Counter]["ip"]
-		AgentName = AgentInfo["agents"][Counter]["name"]	
-		AgentID = AgentInfo["agents"][Counter]["id"]
-		LastScanned = (AgentInfo["agents"][Counter]["last_scanned"])
-		
-		if (AgentInfo["agents"][Counter]["groups"] == None):
-			continue
-		elif (LastScanned == None):
-			continue
-		elif (LastScanned + TimeDiff) < time.time():
-			CurrentTime = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))
-			LastScannedTime = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(LastScanned))
-			URL = 'https://cloud.tenable.com/scanners/1/agents/%s' % (AgentID)
-			DeleteAgent = requests.delete(URL, headers=tenable_header)
-			#TestDeleteAgent = requests.get(URL, headers=tenable_header)
-			ListDeletedAgents = ("%s (%s) was deleted at %s. Last Scanned at %s" %(AgentName, AgentIP, CurrentTime, LastScannedTime))
-			DeletedAgentsFile = open("DeletedStaleAssets.log", "a")
-			DeletedAgentsFile.write("%s\n" % (ListDeletedAgents))
-			DeletedAgentsFile.close()
-			print(ListDeletedAgents)		
-			time.sleep(.3)
-			DeletedCount += 1
-		Counter +=1
-	print("\n%d Agents have been deleted" % (DeletedCount))
-	print("You can review the deleted assets in DeletedStaleAssets.log")
-	ToContinue = input("\nPress Return/Enter to Continue...")
-	menu()	
+    #agents that are part of a group which have not scanned within 60 days
+    ListDeletedAgents = ""
+    DeletedCount = 0
+    TimeDiff = 7872650 #roughly 60 days
+    Counter = 0
+    AgentInfo = GetAgentsInformation()
+    for i in (AgentInfo["agents"]):
+        AgentIP = AgentInfo["agents"][Counter]["ip"]
+        AgentName = AgentInfo["agents"][Counter]["name"]
+        AgentID = AgentInfo["agents"][Counter]["id"]
+        LastScanned = (AgentInfo["agents"][Counter]["last_scanned"])
+
+        if (AgentInfo["agents"][Counter]["groups"] == None):
+            continue
+        elif (LastScanned == None):
+            continue
+        elif (LastScanned + TimeDiff) < time.time():
+            CurrentTime = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))
+            LastScannedTime = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(LastScanned))
+            URL = 'https://cloud.tenable.com/scanners/1/agents/%s' % (AgentID)
+            DeleteAgent = requests.delete(URL, headers=tenable_header)
+            #TestDeleteAgent = requests.get(URL, headers=tenable_header)
+            ListDeletedAgents = ("%s (%s) was deleted at %s. Last Scanned at %s" %(AgentName, AgentIP, CurrentTime, LastScannedTime))
+            DeletedAgentsFile = open("DeletedStaleAssets.log", "a")
+            DeletedAgentsFile.write("%s\n" % (ListDeletedAgents))
+            DeletedAgentsFile.close()
+            print(ListDeletedAgents)
+            time.sleep(.3)
+            DeletedCount += 1
+        Counter +=1
+    print("\n%d Agents have been deleted" % (DeletedCount))
+    print("You can review the deleted assets in DeletedStaleAssets.log")
+    input("\nPress Return/Enter to Continue...")
+    menu()
 
 
 def DeleteLastCheckedIn():
-	#all agents which have not checkedin within 60 days
-	ListDeletedAgents = ""
-	DeletedCount = 0
-	TimeDiff = 7872650 #roughly 60 days
-	Counter = 0
-	AgentInfo = GetAgentsInformation()
-	for i in (AgentInfo["agents"]):
-		AgentName = AgentInfo["agents"][Counter]["name"]	
-		AgentID = AgentInfo["agents"][Counter]["id"]
-		AgentIP = AgentInfo["agents"][Counter]["ip"]
-		LastChecked = AgentInfo["agents"][Counter]["last_connect"]
-		if LastChecked != None:
-			if (LastChecked + TimeDiff) < time.time():
-				LastCheckedTime = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(LastChecked))
-				#print("%s - %s" % (AgentName, LastCheckedTime))
+    #all agents which have not checkedin within 60 days
+    ListDeletedAgents = ""
+    DeletedCount = 0
+    TimeDiff = 7872650 #roughly 60 days
+    Counter = 0
+    AgentInfo = GetAgentsInformation()
+    for i in (AgentInfo["agents"]):
+        AgentName = AgentInfo["agents"][Counter]["name"]
+        AgentID = AgentInfo["agents"][Counter]["id"]
+        AgentIP = AgentInfo["agents"][Counter]["ip"]
+        LastChecked = AgentInfo["agents"][Counter]["last_connect"]
+        if LastChecked != None:
+            if (LastChecked + TimeDiff) < time.time():
+                LastCheckedTime = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(LastChecked))
+                #print("%s - %s" % (AgentName, LastCheckedTime))
 
-				CurrentTime = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))
-				LastCheckedTime = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(LastChecked))
-				URL = 'https://cloud.tenable.com/scanners/1/agents/%s' % (AgentID)
-				DeleteAgent = requests.delete(URL, headers=tenable_header)
-				#TestDeleteAgent = requests.get(URL, headers=tenable_header)
-				ListDeletedAgents = ("%s (%s) was deleted at %s. Last Checked-in at %s" %(AgentName, AgentIP, CurrentTime, LastCheckedTime))
-				DeletedAgentsFile = open("DeletedDisconnectedAssets.log", "a")
-				DeletedAgentsFile.write("%s\n" % (ListDeletedAgents))
-				DeletedAgentsFile.close()
-				print(ListDeletedAgents)		
-				time.sleep(.3)
-				DeletedCount += 1
-		Counter += 1
-	print("\n%d Agents have been deleted" % (DeletedCount))
-	print("You can review the deleted assets in DeletedDisconnectedAssets.log")
-	ToContinue = input("\nPress Return/Enter to Continue...")
-	menu()
-	return 0
+                CurrentTime = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))
+                LastCheckedTime = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(LastChecked))
+                URL = 'https://cloud.tenable.com/scanners/1/agents/%s' % (AgentID)
+                DeleteAgent = requests.delete(URL, headers=tenable_header)
+                #TestDeleteAgent = requests.get(URL, headers=tenable_header)
+                ListDeletedAgents = ("%s (%s) was deleted at %s. Last Checked-in at %s" %(AgentName, AgentIP, CurrentTime, LastCheckedTime))
+                DeletedAgentsFile = open("DeletedDisconnectedAssets.log", "a")
+                DeletedAgentsFile.write("%s\n" % (ListDeletedAgents))
+                DeletedAgentsFile.close()
+                print(ListDeletedAgents)
+                time.sleep(.3)
+                DeletedCount += 1
+        Counter += 1
+    print("\n%d Agents have been deleted" % (DeletedCount))
+    print("You can review the deleted assets in DeletedDisconnectedAssets.log")
+    input("\nPress Return/Enter to Continue...")
+    menu()
+    return 0
 
 
 def GetAllAgentCount():
-	AgentInfo = GetAgentsInformation()
-	TotalAgents = 0
-	for i in (AgentInfo["agents"]):
-		TotalAgents += 1
-	print("\nThere are a total of %d Agents" % (TotalAgents))
-	ToContinue = input("\nPress Return/Enter to Continue...")
-	menu()
-	return 0
+    AgentInfo = GetAgentsInformation()
+    TotalAgents = 0
+    for i in (AgentInfo["agents"]):
+        TotalAgents += 1
+    print("\nThere are a total of %d Agents" % (TotalAgents))
+    input("\nPress Return/Enter to Continue...")
+    menu()
+    return 0
 
 
+def DownloadAgentInstallers():
+    SaveFolder = r'.\Agents'
+    if not os.path.exists(SaveFolder):
+        os.makedirs(SaveFolder)
+    #TODO copy/paste Download Agent code here
+    AgentVersion = input("Please enter the Agent Version (Ex: blahblah):")
+
+    input("\nPress Return/Enter to Continue...")
+    menu()
 
 def SaveAgentsToFile(data, filename):
-	TempFile= open(filename, "w") 
-	TempFile.write(data)
-	TempFile.close()
+    TempFile= open(filename, "w")
+    TempFile.write(data)
+    TempFile.close()
 
 
 def ReadImportedFile():
-	FileName = input("Please Enter the File Name: ")
-	try:
-		TempImportFile = open(FileName, "r")
-	except:
-		print("\n\n*************\nError. Filename could not be found.\nReturning to main menu.\n*************")
-		menu()
-	ImportedData = TempImportFile.readlines()
-	TempImportFile.close()
-	return (ImportedData)
-	
+    FileName = input("Please Enter the File Name: ")
+    try:
+        TempImportFile = open(FileName, "r")
+    except:
+        print("\n\n*************\nError. Filename could not be found.\nReturning to main menu.\n*************")
+        menu()
+    ImportedData = TempImportFile.readlines()
+    TempImportFile.close()
+    return (ImportedData)
+
 
 
 
 def menu():
-	print("\n\n\nAvailable Options\n")
-	print("1\tView Unassigned Agents")
-	print("2\tDelete Agents - Last Scanned over 60 days ago")
-	print("3\tDelete Agents - Last Checked-In over 60 days ago")
-	print("4\tAdd Agents to Group (via hostname)")
-	print("5\tGet Count of All Agents")
-	print("\nq\tQuit  (or CTRL+C at any time)\n\n")
-	UserResponse = input("Please make your selection: ")
+    print("\n\n\nAvailable Options\n")
+    print("1\tView Unassigned Agents")
+    print("2\tDelete Agents - Last Scanned over 60 days ago")
+    print("3\tDelete Agents - Last Checked-In over 60 days ago")
+    print("4\tAdd Agents to Group (via hostname)")
+    print("5\tGet Count of All Agents")
+    print("6\tDownload Agent Installer Files")
+    print("\nq\tQuit  (or CTRL+C at any time)\n\n")
+    UserResponse = input("Please make your selection: ")
 
-	if UserResponse == "1":
-		print(AgentGroupExist())
-	elif UserResponse == "2":
-		DeleteStaleAgents()
-	elif UserResponse == "3":
-		DeleteLastCheckedIn()
-	elif UserResponse == "4":
-		AddAgentsToGroup()
-	elif UserResponse == "5":
-		GetAllAgentCount()
-	elif UserResponse == "q":
-		sys.exit(0)
-	
-	else:
-		menu()
+    if UserResponse == "1":
+        print(AgentGroupExist())
+    elif UserResponse == "2":
+        DeleteStaleAgents()
+    elif UserResponse == "3":
+        DeleteLastCheckedIn()
+    elif UserResponse == "4":
+        AddAgentsToGroup()
+    elif UserResponse == "5":
+        GetAllAgentCount()
+    elif UserResponse == "6":
+        DownloadAgentInstallers()
+    elif UserResponse == "q":
+        sys.exit(0)
 
-#TODO Create Menu content for 2, 3
+    else:
+        menu()
+
+#TODO Create Additional Menus
 
 
 def main():
-	CheckPythonVersion()
-	print("\n\n\n\n\t\tWelcome To Tenable - Gold!\n")
-	print("\t\tThe Number 1 API Utility for Tenable.io")
-	menu()
+    CheckPythonVersion()
+    print("\n\n\n\n\t\tWelcome To Tenable - Gold!\n")
+    print("\t\tThe Number 1 API Utility for Tenable.io")
+    menu()
 
 
 
 if __name__ == main():
-	main()
+    main()
