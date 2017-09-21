@@ -1,1 +1,1 @@
-tenable_header = {'nothing:noway'}
+tenable_header = {'X-ApiKeys':'accessKey=blahblah';'secretKey=blahblah'}
