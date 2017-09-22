@@ -51,31 +51,30 @@ def AgentGroupExist():
     counter = 0
     TotalUnassigned = 0
     AgentInfo = GetAgentsInformation()
+    print("\n\nThe following assets do not belong to a group:\n")
     for i in (AgentInfo["agents"]):
         if AgentInfo["agents"][counter]["groups"] == None:
             AgentName = AgentInfo["agents"][counter]["name"]
             AgentOS = AgentInfo["agents"][counter]["platform"]
+            TotalUnassigned += 1
+            print("\t%s. %s - %s" % (TotalUnassigned, AgentName, AgentOS))
             if "DARWIN" in AgentOS:
                 MacAgentGroupNull += "%s\n" % AgentName
-                TotalUnassigned += 1
             elif "LINUX" in AgentOS:
                 LinuxAgentGroupNull += "%s\n" % AgentName
-                TotalUnassigned += 1
             elif "Windows" in AgentOS:
                 WindowsAgentGroupNull += "%s\n" % AgentName
-                TotalUnassigned += 1
             else:
                 UnknownAgentGroupNull += "%s\n" % AgentName
-                TotalUnassigned += 1
 
         counter += 1
-
+    input("\nPress Return/Enter to Continue...")
     SaveAgentsToFile(LinuxAgentGroupNull, "LinuxAgentGroupNull.txt")
     SaveAgentsToFile(MacAgentGroupNull, "MacAgentGroupNull.txt")
     SaveAgentsToFile(UnknownAgentGroupNull, "UnknownAgentGroupNull.txt")
     SaveAgentsToFile(WindowsAgentGroupNull, "WindowsAgentGroupNull.txt")
-    print("\nData has been saved")
-    print("\nA total of %s agents do not belong to a group" % TotalUnassigned)
+    print("\n\nData has been saved")
+    #print("\nA total of %s agents do not belong to a group" % TotalUnassigned)
     print("\nPlease review the following files for additional information:")
     print("\t./LinuxAgentGroupNull.txt\n\t./MacAgentGroupNull.txt\n\t./WindowsAgentGroupNull.txt")
     print("\t./UnknownAgentGroupNull.txt")
