@@ -3,13 +3,14 @@
 ##identify agents that do not belong to a group
 ##save them to their own OS file, hostname only.
 #
-#Current Version: 0.2.1
-#Version Notes: adding remaining Enter to Continue statements, DeleteStaleAgents(), 
-#               DeleteLastCheckedIn(), GetAllAgentCount()
+#Current Version: 0.2.2
+#Version Notes: added ListNeverCheckedIn()
 #
 #Version History
+#ver 0.2.1 -adding remaining Enter to Continue statements, DeleteStaleAgents(), 
+#               DeleteLastCheckedIn(), GetAllAgentCount()
 #ver 0.2.0 - removing support for python 2.x and older
-#ver 0.2.1 - first stab at combining all useful scripts
+#ver 0.1.0 - first stab at combining all useful scripts
 
 
 import requests
@@ -138,7 +139,7 @@ def DeleteStaleAgents():
     #agents that are part of a group which have not scanned within 60 days
     ListDeletedAgents = ""
     DeletedCount = 0
-    TimeDiff = 7872650 #roughly 60 days
+    TimeDiff = 15745300 #roughly 120 days
     Counter = 0
     AgentInfo = GetAgentsInformation()
     for i in (AgentInfo["agents"]):
@@ -267,6 +268,32 @@ def DownloadAgentInstallers():
     menu()
     return(0)
 
+def ListNeverCheckedIn():
+    Counter = 0
+    TotalNeverCheckedIn = 0
+    ListNever = ""
+    AgentInfo = GetAgentsInformation()
+    for i in (AgentInfo["agents"]):
+        AgentName = AgentInfo["agents"][Counter]["name"]
+        AgentIP = AgentInfo["agents"][Counter]["ip"]
+        AgentOS = AgentInfo["agents"][Counter]["platform"]
+        LastChecked = AgentInfo["agents"][Counter]["last_connect"]
+        if LastChecked == None:
+            print("%s,%s,%s" % (AgentName, AgentIP, AgentOS))
+            ListNever += "%s,%s,%s\n" % (AgentName, AgentIP, AgentOS)
+            TotalNeverCheckedIn += 1
+        Counter += 1
+    print("\n\nTotal Agents that have not checked in: %d" % TotalNeverCheckedIn)
+    ListAgentsFile = open("NeverCheckedInAssets.log", "a")
+    ListAgentsFile.write(ListNever)
+    ListAgentsFile.close()
+    print("\nThe list has been saved to .\\NeverCheckedInAssets.log")
+
+
+    input("\nPress Return/Enter to Continue...")
+    menu()
+    return(0)
+
 def SaveAgentsToFile(data, filename):
     TempFile= open(filename, "w")
     TempFile.write(data)
@@ -295,6 +322,7 @@ def menu():
     print("4\tAdd Agents to Group (via hostname)")
     print("5\tGet Count of All Agents")
     print("6\tDownload Agent Installer Files")
+    print("7\tList Agents that have never checked in")
     print("\nq\tQuit  (or CTRL+C at any time)\n\n")
     UserResponse = input("Please make your selection: ")
 
@@ -310,6 +338,8 @@ def menu():
         GetAllAgentCount()
     elif UserResponse == "6":
         DownloadAgentInstallers()
+    elif UserResponse == "7":
+        ListNeverCheckedIn()
     elif UserResponse == "q":
         sys.exit(0)
 
