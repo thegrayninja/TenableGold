@@ -3,14 +3,16 @@
 ##identify agents that do not belong to a group
 ##save them to their own OS file, hostname only.
 #
-#Current Version: 0.2.2
-#Version Notes: added ListNeverCheckedIn()
+#Current Version: 0.2.3
+#Version Notes: added ReturnAssetsWithoutAgents(), re-ordered menu and defs()
 #
 #Version History
-#ver 0.2.1 -adding remaining Enter to Continue statements, DeleteStaleAgents(), 
+#ver 0.2.2 - added ListNeverCheckedIn()
+#ver 0.2.1 -adding remaining Enter to Continue statements, DeleteStaleAgents(),
 #               DeleteLastCheckedIn(), GetAllAgentCount()
 #ver 0.2.0 - removing support for python 2.x and older
 #ver 0.1.0 - first stab at combining all useful scripts
+
 
 
 import requests
@@ -30,7 +32,8 @@ def CheckPythonVersion():
         print("\n\nPlease run Python 3.x or newer\n")
         sys.exit(1)
 
-
+def GetOSVersion():
+    return(platform.system())
 
 def GetGroupInformation():
     return((requests.get('https://cloud.tenable.com/scanners/1/agent-groups', headers=tenable_header)).json())
@@ -41,9 +44,85 @@ def GetAgentsInformation():
     url = 'https://cloud.tenable.com/scanners/1/agents/'
     return(requests.get(url, headers=tenable_header)).json()
 
+def GetAssetsInformation():
+    url = 'https://cloud.tenable.com/workbenches/assets'
+    return(requests.get(url,headers=tenable_header)).json()
 
 
-##NOTE For AgentGroupExist
+
+def SaveAgentsToFile(data, filename):
+    TempFile= open(filename, "w")
+    TempFile.write(data)
+    TempFile.close()
+
+
+def ReadImportedFile():
+    FileName = input("Please Enter the File Name: ")
+    try:
+        TempImportFile = open(FileName, "r")
+    except:
+        print("\n\n*************\nError. Filename could not be found.\nReturning to main menu.\n*************")
+        menu()
+    ImportedData = TempImportFile.readlines()
+    TempImportFile.close()
+    return (ImportedData)
+
+
+def ShowGroups():
+    GroupInfo = GetGroupInformation()
+    counter = 0
+    for i in (GroupInfo["groups"]):
+        GroupName = GroupInfo["groups"][counter]["name"]
+        GroupID = GroupInfo["groups"][counter]["id"]
+        print("ID: %s\tName: %s" %(GroupID, GroupName))
+        counter += 1
+
+
+##NOTE For AddAgentsToGroup
+##TODO Update this function..name is lame and variables are jacked
+def is_in(agentip, agentid, agentname, UserGroupSelection, AgentHostnames):
+    for ss in AgentHostnames:
+        search_string = ss.strip()
+        if search_string in agentname:
+            url = 'https://cloud.tenable.com/scanners/1/agent-groups/%s/agents/%s' % (UserGroupSelection, agentid)
+            temp_container = requests.put(url, headers=tenable_header)
+            newentry = ("%s - %s was added to the group %s" % (agentip, agentname, UserGroupSelection))
+            newFile = open("tenable_added_to_group.log", "a")
+            newFile.write("%s\n" % (newentry))
+            newFile.close()
+            print (newentry)
+            time.sleep(.3)
+            global added_count
+            added_count += 1
+
+
+
+
+
+
+def GetAllAgentCount():
+    AgentInfo = GetAgentsInformation()
+    TotalAgents = 0
+    for i in (AgentInfo["agents"]):
+        TotalAgents += 1
+    print("\nThere are a total of %d Agents" % (TotalAgents))
+    input("\nPress Return/Enter to Continue...")
+    menu()
+    return 0
+
+
+
+def GetAllAssetCount():
+    AssetInfo = GetAssetsInformation()
+    TotalAssets = 0
+    for Asset in (AssetInfo["assets"]):
+        TotalAssets += 1
+    print("\nThere are a total of %d Assets" % (TotalAssets))
+    input("\nPress Return/Enter to Continue...")
+    menu()
+    return 0
+
+
 def AgentGroupExist():
     LinuxAgentGroupNull = ""
     MacAgentGroupNull = ""
@@ -83,36 +162,82 @@ def AgentGroupExist():
     menu()
     return(0)
 
+def ReturnAssetsWithoutAgents():
+    AssetList = GetAssetsInformation()
+    Counter = 0
+    TotalAssetsWithoutAgents = 0
+    MissingAgents = "FQDN,HOSTNAME,IPV4,OS\n"
+    for Asset in (AssetList["assets"]):
+        if AssetList["assets"][Counter]["has_agent"] == False:
+            AssetFQDN = ''.join(AssetList["assets"][Counter]["fqdn"])
+            AssetFQDN = AssetFQDN.replace('[','')
+            AssetFQDN = AssetFQDN.replace(']', '')
+            AssetName = ''.join(AssetList["assets"][Counter]["netbios_name"])
+            AssetName = AssetName.replace('[','')
+            AssetName = AssetName.replace(']', '')
+            AssetIP = ''.join(AssetList["assets"][Counter]["ipv4"])
+            AssetIP = AssetIP.replace('[','')
+            AssetIP = AssetIP.replace(']', '')
+            AssetOS = ''.join(AssetList["assets"][Counter]["operating_system"])
+            AssetOS = AssetOS.replace('[','')
+            AssetOS = AssetOS.replace(']', '')
+            MissingAgents += "%s,%s,%s,%s\n" % (AssetFQDN, AssetName, AssetIP, AssetOS)
+            TotalAssetsWithoutAgents += 1
+        Counter += 1
+    print(TotalAssetsWithoutAgents)
+
+    OSVersion = GetOSVersion()
+
+    if "Windows" in OSVersion:
+        SaveFolder = r'.\Docs'
+        if not os.path.exists(SaveFolder):
+            os.makedirs(SaveFolder)
+        FilePath = "%s\AssetsWithoutAgents.csv" % SaveFolder
+
+    elif "Linux" in OSVersion:
+        SaveFolder = r'./Docs'
+        if not os.path.exists(SaveFolder):
+            os.makedirs(SaveFolder)
+        FilePath = "%s/AssetsWithoutAgents.csv" % SaveFolder
+
+    else:
+        FilePath = "AssetsWithoutAgents.csv"
+
+    SaveAgentsToFile(MissingAgents, FilePath)
+    print("\n%s has been saved to your current directory." % FilePath)
+    input("\nPress Return/Enter to Continue...")
+    menu()
+
+    return 0
 
 
-def ShowGroups():
-    GroupInfo = GetGroupInformation()
-    counter = 0
-    for i in (GroupInfo["groups"]):
-        GroupName = GroupInfo["groups"][counter]["name"]
-        GroupID = GroupInfo["groups"][counter]["id"]
-        print("ID: %s\tName: %s" %(GroupID, GroupName))
-        counter += 1
+def ListNeverCheckedIn():
+    Counter = 0
+    TotalNeverCheckedIn = 0
+    ListNever = ""
+    AgentInfo = GetAgentsInformation()
+    for i in (AgentInfo["agents"]):
+        AgentName = AgentInfo["agents"][Counter]["name"]
+        AgentIP = AgentInfo["agents"][Counter]["ip"]
+        AgentOS = AgentInfo["agents"][Counter]["platform"]
+        LastChecked = AgentInfo["agents"][Counter]["last_connect"]
+        if LastChecked == None:
+            print("%s,%s,%s" % (AgentName, AgentIP, AgentOS))
+            ListNever += "%s,%s,%s\n" % (AgentName, AgentIP, AgentOS)
+            TotalNeverCheckedIn += 1
+        Counter += 1
+    print("\n\nTotal Agents that have not checked in: %d" % TotalNeverCheckedIn)
+    ListAgentsFile = open("NeverCheckedInAssets.log", "a")
+    ListAgentsFile.write(ListNever)
+    ListAgentsFile.close()
+    print("\nThe list has been saved to .\\NeverCheckedInAssets.log")
 
 
-##NOTE For AddAgentsToGroup
-##TODO Update this function..name is lame and variables are jacked
-def is_in(agentip, agentid, agentname, UserGroupSelection, AgentHostnames):
-    #global import_search_strings
-    #global search_group_id
-    for ss in AgentHostnames:
-        search_string = ss.strip()
-        if search_string in agentname:
-            url = 'https://cloud.tenable.com/scanners/1/agent-groups/%s/agents/%s' % (UserGroupSelection, agentid)
-            temp_container = requests.put(url, headers=tenable_header)
-            newentry = ("%s - %s was added to the group %s" % (agentip, agentname, UserGroupSelection))
-            newFile = open("tenable_added_to_group.log", "a")
-            newFile.write("%s\n" % (newentry))
-            newFile.close()
-            print (newentry)
-            time.sleep(.3)
-            global added_count
-            added_count += 1
+    input("\nPress Return/Enter to Continue...")
+    menu()
+    return(0)
+
+
 
 
 def AddAgentsToGroup():
@@ -209,16 +334,6 @@ def DeleteLastCheckedIn():
     return 0
 
 
-def GetAllAgentCount():
-    AgentInfo = GetAgentsInformation()
-    TotalAgents = 0
-    for i in (AgentInfo["agents"]):
-        TotalAgents += 1
-    print("\nThere are a total of %d Agents" % (TotalAgents))
-    input("\nPress Return/Enter to Continue...")
-    menu()
-    return 0
-
 
 def DownloadAgentInstallers():
 
@@ -234,7 +349,7 @@ def DownloadAgentInstallers():
     print("and click on any file to download. Accept the terms, then right-click the Download button and copy ")
     print("the link. The end of the string will contain the cookie. Copy it and paste in the field below.\n")
     TenableCookie = (input("Enter License Agreement Cookie (Ex: 1ea0fe39437453a7e12a12115194e8e5):")).strip()
-    OSVersion = (platform.system())
+    OSVersion = GetOSVersion()
     if "Windows" in OSVersion:
         ##TODO For Windows --doesn't work
         SaveFolder = r'.\Agents'
@@ -268,78 +383,43 @@ def DownloadAgentInstallers():
     menu()
     return(0)
 
-def ListNeverCheckedIn():
-    Counter = 0
-    TotalNeverCheckedIn = 0
-    ListNever = ""
-    AgentInfo = GetAgentsInformation()
-    for i in (AgentInfo["agents"]):
-        AgentName = AgentInfo["agents"][Counter]["name"]
-        AgentIP = AgentInfo["agents"][Counter]["ip"]
-        AgentOS = AgentInfo["agents"][Counter]["platform"]
-        LastChecked = AgentInfo["agents"][Counter]["last_connect"]
-        if LastChecked == None:
-            print("%s,%s,%s" % (AgentName, AgentIP, AgentOS))
-            ListNever += "%s,%s,%s\n" % (AgentName, AgentIP, AgentOS)
-            TotalNeverCheckedIn += 1
-        Counter += 1
-    print("\n\nTotal Agents that have not checked in: %d" % TotalNeverCheckedIn)
-    ListAgentsFile = open("NeverCheckedInAssets.log", "a")
-    ListAgentsFile.write(ListNever)
-    ListAgentsFile.close()
-    print("\nThe list has been saved to .\\NeverCheckedInAssets.log")
-
-
-    input("\nPress Return/Enter to Continue...")
-    menu()
-    return(0)
-
-def SaveAgentsToFile(data, filename):
-    TempFile= open(filename, "w")
-    TempFile.write(data)
-    TempFile.close()
-
-
-def ReadImportedFile():
-    FileName = input("Please Enter the File Name: ")
-    try:
-        TempImportFile = open(FileName, "r")
-    except:
-        print("\n\n*************\nError. Filename could not be found.\nReturning to main menu.\n*************")
-        menu()
-    ImportedData = TempImportFile.readlines()
-    TempImportFile.close()
-    return (ImportedData)
-
 
 
 
 def menu():
     print("\n\n\nAvailable Options\n")
-    print("1\tView Unassigned Agents")
-    print("2\tDelete Agents - Last Scanned over 60 days ago")
-    print("3\tDelete Agents - Last Checked-In over 60 days ago")
-    print("4\tAdd Agents to Group (via hostname)")
-    print("5\tGet Count of All Agents")
-    print("6\tDownload Agent Installer Files")
-    print("7\tList Agents that have never checked in")
+    print("1\tGet Count of All Agents")
+    print("2\tGet Count of All Assets")
+    print("3\tView Agents not in a Group")
+    print("4\tView Assets that do not have an Agent")
+    print("5\tView Agents that have never checked in")
+    print("6\tAdd Agents to Group (via hostname)")
+    print("7\tDelete Agents - Last Scanned over 60 days ago")
+    print("8\tDelete Agents - Last Checked-In over 60 days ago")
+    print("9\tDownload Agent Installer Files")
+
     print("\nq\tQuit  (or CTRL+C at any time)\n\n")
     UserResponse = input("Please make your selection: ")
 
     if UserResponse == "1":
-        print(AgentGroupExist())
-    elif UserResponse == "2":
-        DeleteStaleAgents()
-    elif UserResponse == "3":
-        DeleteLastCheckedIn()
-    elif UserResponse == "4":
-        AddAgentsToGroup()
-    elif UserResponse == "5":
         GetAllAgentCount()
-    elif UserResponse == "6":
-        DownloadAgentInstallers()
-    elif UserResponse == "7":
+    elif UserResponse == "2":
+        GetAllAssetCount()
+    elif UserResponse == "3":
+        print(AgentGroupExist())
+    elif UserResponse == "4":
+        ReturnAssetsWithoutAgents()
+    elif UserResponse == "5":
         ListNeverCheckedIn()
+    elif UserResponse == "6":
+        AddAgentsToGroup()
+    elif UserResponse == "7":
+        DeleteStaleAgents()
+    elif UserResponse == "8":
+        DeleteLastCheckedIn()
+    elif UserResponse == "9":
+        DownloadAgentInstallers()
+
     elif UserResponse == "q":
         sys.exit(0)
 
