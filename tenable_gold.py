@@ -3,10 +3,11 @@
 ##identify agents that do not belong to a group
 ##save them to their own OS file, hostname only.
 #
-#Current Version: 0.2.3
-#Version Notes: added ReturnAssetsWithoutAgents(), re-ordered menu and defs()
+#Current Version: 0.2.4
+#Version Notes: TODO view asset information, save asset vulns to csv
 #
 #Version History
+#ver 0.2.3 - added ReturnAssetsWithoutAgents(), re-ordered menu and defs()
 #ver 0.2.2 - added ListNeverCheckedIn()
 #ver 0.2.1 -adding remaining Enter to Continue statements, DeleteStaleAgents(),
 #               DeleteLastCheckedIn(), GetAllAgentCount()
@@ -37,7 +38,6 @@ def GetOSVersion():
 
 def GetGroupInformation():
     return((requests.get('https://cloud.tenable.com/scanners/1/agent-groups', headers=tenable_header)).json())
-
 
 
 def GetAgentsInformation():
@@ -334,6 +334,57 @@ def DeleteLastCheckedIn():
     return 0
 
 
+def ViewAgentInformation():
+    AgentInfo = GetAgentsInformation()
+    ImportHostFile = input("Please Enter the filename that contains your hostnames (column listed): ")
+    TempHostFile = open(ImportHostFile, "r")
+    ImportHostList = TempHostFile.readlines()
+    TempHostFile.close()
+    Counter = 0
+    for Asset in AgentInfo["agents"]:
+        for Host in ImportHostList:
+            HostStripped = Host.strip()
+            if HostStripped in AgentInfo["agents"][Counter]["name"]:
+                AgentName = (AgentInfo["agents"][Counter]["name"])
+                AgentUuid = (AgentInfo["agents"][Counter]["uuid"])
+                AgentID = (AgentInfo["agents"][Counter]["id"])
+                print ("%s, %s, %s" % (AgentName, AgentUuid, AgentID))
+        Counter += 1
+
+    input("\nPress Return/Enter to Continue...")
+    menu()
+    return 0
+
+
+#TODO Build out Agent Vuln report
+#TODO Currently reports on ALL VULNS!!! WTF
+def ViewAgentVulnerabilities():
+    Results = "hostname\severity\plugin_name\n"
+    ImportHostFile = input("Please Enter the filename that contains your hostnames (column listed): ")
+    TempHostFile = open(ImportHostFile, "r")
+    ImportHostList = TempHostFile.readlines()
+    TempHostFile.close()
+#https://cloud.tenable.com/workbenches/vulnerabilities?authenticated=false&exploitable=false&&resolvable=false
+    for Host in ImportHostList:
+        Host = Host.strip()
+        AgentUrl = 'https://cloud.tenable.com/workbenches/vulnerabilities?filter.0.quality=match&filter.0.filter=host.hostname&filter.0.value=%s*' % (
+        Host)
+        JsonData = requests.get(AgentUrl, headers=tenable_header).json()
+
+        Count = 0
+        for i in JsonData["vulnerabilities"]:
+            Severity = JsonData["vulnerabilities"][Count]["severity"]
+            PluginName = JsonData["vulnerabilities"][Count]["plugin_name"]
+            Results += ("%s\%s\%s\n" %(Host, Severity, PluginName))
+            Count += 1
+    print(Results)
+    SaveAgentsToFile(Results, ".\Docs\AgentVulns.csv")
+    print("\nYour results have been saved to .\Docs\AgentVulns.csv")
+    input("\nPress Return/Enter to Continue...")
+    menu()
+    return 0
+
+
 
 def DownloadAgentInstallers():
 
@@ -397,7 +448,7 @@ def menu():
     print("7\tDelete Agents - Last Scanned over 60 days ago")
     print("8\tDelete Agents - Last Checked-In over 60 days ago")
     print("9\tDownload Agent Installer Files")
-
+    print("10\tView Asset Information")
     print("\nq\tQuit  (or CTRL+C at any time)\n\n")
     UserResponse = input("Please make your selection: ")
 
@@ -419,6 +470,10 @@ def menu():
         DeleteLastCheckedIn()
     elif UserResponse == "9":
         DownloadAgentInstallers()
+    elif UserResponse == "10":
+        ViewAgentInformation()
+    elif UserResponse == "11":
+        ViewAgentVulnerabilities()
 
     elif UserResponse == "q":
         sys.exit(0)
