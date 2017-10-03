@@ -68,6 +68,20 @@ def ReadImportedFile():
     return (ImportedData)
 
 
+def ConvertSeverityToEnglish(SeverityNumber):
+    if SeverityNumber == 4:
+        return "Critical"
+    elif SeverityNumber == 3:
+        return "High"
+    elif SeverityNumber == 2:
+        return "Medium"
+    elif SeverityNumber == 1:
+        return "Low"
+    else:
+        return "Unknown"
+
+
+
 def ShowGroups():
     GroupInfo = GetGroupInformation()
     counter = 0
@@ -356,15 +370,14 @@ def ViewAgentInformation():
     return 0
 
 
-#TODO Build out Agent Vuln report
-#TODO Currently reports on ALL VULNS!!! WTF
+
 def ViewAgentVulnerabilities():
-    Results = "hostname\severity\plugin_name\n"
+    Results = "hostname\severity\plugin_name\plugin_id\count\\vulnerability_state\plugin_family\n"
     ImportHostFile = input("Please Enter the filename that contains your hostnames (column listed): ")
     TempHostFile = open(ImportHostFile, "r")
     ImportHostList = TempHostFile.readlines()
     TempHostFile.close()
-#https://cloud.tenable.com/workbenches/vulnerabilities?authenticated=false&exploitable=false&&resolvable=false
+
     for Host in ImportHostList:
         Host = Host.strip()
         AgentUrl = 'https://cloud.tenable.com/workbenches/vulnerabilities?filter.0.quality=match&filter.0.filter=host.hostname&filter.0.value=%s*' % (
@@ -375,9 +388,15 @@ def ViewAgentVulnerabilities():
         for i in JsonData["vulnerabilities"]:
             Severity = JsonData["vulnerabilities"][Count]["severity"]
             PluginName = JsonData["vulnerabilities"][Count]["plugin_name"]
-            Results += ("%s\%s\%s\n" %(Host, Severity, PluginName))
+            PluginID = JsonData["vulnerabilities"][Count]["plugin_id"]
+            VulnCount = JsonData["vulnerabilities"][Count]["count"]
+            VulnState = JsonData["vulnerabilities"][Count]["vulnerability_state"]
+            PluginFamily = JsonData["vulnerabilities"][Count]["plugin_family"]
+
+            SeverityInEnglish = ConvertSeverityToEnglish(Severity)
+            Results += ("%s\%s\%s\%s\%s\%s\%s\n" %(Host, SeverityInEnglish, PluginName, PluginID, VulnCount, VulnState, PluginFamily))
             Count += 1
-    print(Results)
+
     SaveAgentsToFile(Results, ".\Docs\AgentVulns.csv")
     print("\nYour results have been saved to .\Docs\AgentVulns.csv")
     input("\nPress Return/Enter to Continue...")
@@ -448,7 +467,8 @@ def menu():
     print("7\tDelete Agents - Last Scanned over 60 days ago")
     print("8\tDelete Agents - Last Checked-In over 60 days ago")
     print("9\tDownload Agent Installer Files")
-    print("10\tView Asset Information")
+    print("10\tView Agent Information")
+    print("11\tSave Agent Vulnerabilities. Provide filename that\n\t\tcontains the hostnames in a column.")
     print("\nq\tQuit  (or CTRL+C at any time)\n\n")
     UserResponse = input("Please make your selection: ")
 
