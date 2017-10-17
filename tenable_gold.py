@@ -3,10 +3,11 @@
 ##identify agents that do not belong to a group
 ##save them to their own OS file, hostname only.
 #
-#Current Version: 0.2.4
-#Version Notes: TODO view asset information, save asset vulns to csv
+#Current Version: 0.2.5
+#Version Notes: TODO gather assets (mac) and update target groups
 #
 #Version History
+#ver 0.2.4 - view asset information, save asset vulns to csv
 #ver 0.2.3 - added ReturnAssetsWithoutAgents(), re-ordered menu and defs()
 #ver 0.2.2 - added ListNeverCheckedIn()
 #ver 0.2.1 -adding remaining Enter to Continue statements, DeleteStaleAgents(),
@@ -419,22 +420,57 @@ def ViewScannerInformation():
 
 
 
+def UpdateTargetGroups(GroupID, GroupName, GroupMembers):
+    url = 'https://cloud.tenable.com/target-groups/%s' % GroupID
+    #data = {"name":"_thouse_test","members":"redbull, pickles, garbage","type":"system"}
+
+    Data = {}
+    Data["name"] = GroupName
+    Data["members"] = GroupMembers
+    Data["type"] = 'system'
+    PostStatus = requests.put(url, headers=tenable_header, data=Data)
+    print(PostStatus.status_code)
+    #print(Data)
 
 
+def AddToTargetGroups(GroupID, GroupName, GroupMembers):
+    #GroupID = "29155"
+    #GroupName = "_thouse_test"
+    #GroupMembers = "redbull, banana, monster, cookies"
+    UpdateTargetGroups(GroupID, GroupName, GroupMembers)
+    print("\nDone!")
+    return 0
 
-def CreateTargetGroupsWinServer():
-    #TODO Grab Asset Info
-    #url /workbenches/assets?date_range=30&filter.0.quality=match&filter.0.filter=operating_system&filter.0.value=Windows&filter.search_type=and
-    url = 'https://cloud.tenable.com/workbenches/assets?filter.0.quality=match&filter.0.filter=operating_system&filter.0.value=Windows Server'
-    AssetInformation = (requests.get(url, headers=tenable_header)).json()
-    #AssetInformation = GetAssetsInformation()
+def ExportAssetsForTargetGroup():
+    # TODO WINSERVER
+    WinServerURL = 'https://cloud.tenable.com/workbenches/assets?filter.0.quality=match&filter.0.filter=operating_system&filter.0.value=Windows Server'
+    WinServerFileName = '.\Docs\WindowsServer_Assets.txt'
+    WinServerGroupID = '29136'
+    WinServerGroupName = '_WinSRV-Dashboard'
+    WinClientURL = 'https://cloud.tenable.com/workbenches/assets?filter.0.quality=match&filter.0.filter=operating_system&filter.0.value=Windows%207&filter.1.quality=match&filter.1.filter=operating_system&filter.1.value=Windows%2010&filter.search_type=or'
+    WinClientFileName = '.\Docs\WindowsClient_Assets.txt'
+    WinClientGroupID = '29138'
+    WinClientGroupName = '_WindowsClients'
+    LinuxURL = 'https://cloud.tenable.com/workbenches/assets?filter.0.quality=match&filter.0.filter=operating_system&filter.0.value=Linux'
+    LinuxFileName = '.\Docs\Linux_Assets.txt'
+    LinuxGroupID = '29139'
+    LinuxGroupName = '_Linux'
+    print("\nWindows Server:")
+    SaveAssetsForTargetGroup(WinServerURL, WinServerFileName, WinServerGroupID, WinServerGroupName)
+    print("\nWindows Client:")
+    SaveAssetsForTargetGroup(WinClientURL, WinClientFileName, WinClientGroupID, WinClientGroupName)
+    print("\nLinux:")
+    SaveAssetsForTargetGroup(LinuxURL, LinuxFileName, LinuxGroupID, LinuxGroupName)
+    print("\n\nDone!")
+
+
+def SaveAssetsForTargetGroup(URL, FileName, GroupID, GroupName):
+    AssetInformation = (requests.get(URL, headers=tenable_header)).json()
     Counter = 0
     Results = ""
     for Asset in AssetInformation["assets"]:
         Hostname = AssetInformation["assets"][Counter]["fqdn"]
-        #OS = AssetInformation["assets"][Counter]["operating_system"]
         Results += "%s\n" % Hostname
-        #Results += "%s,%s\n" % (Hostname, OS)
         Counter += 1
 
     Results = Results.replace("['","")
@@ -442,77 +478,12 @@ def CreateTargetGroupsWinServer():
     Results = Results.replace("[]","")
     Results = Results.replace("'", "")
     Results = Results.replace(", ", "\n")
-    SaveAgentsToFile(Results,".\Docs\WindowsServer_Assets.txt")
-    print(Results)
+    Results = Results.replace("\n", ", ")
+    SaveAgentsToFile(Results,FileName)
+    UpdateTargetGroups(GroupID, GroupName, Results)
     print(Counter)
 
-    #TODO Separate Assets by OS
-    #TODO CREATE and/or UPDATE OS Target Groups
 
-    print("\nFuck yo couch")
-    return 0
-
-
-def CreateTargetGroupsWinClient():
-    #TODO Grab Asset Info
-    #url /workbenches/assets?date_range=30&filter.0.quality=match&filter.0.filter=operating_system&filter.0.value=Windows&filter.search_type=and
-    url = 'https://cloud.tenable.com/workbenches/assets?filter.0.quality=match&filter.0.filter=operating_system&filter.0.value=Windows%207&filter.1.quality=match&filter.1.filter=operating_system&filter.1.value=Windows%2010&filter.search_type=or'
-    AssetInformation = (requests.get(url, headers=tenable_header)).json()
-    #AssetInformation = GetAssetsInformation()
-    Counter = 0
-    Results = ""
-    for Asset in AssetInformation["assets"]:
-        Hostname = AssetInformation["assets"][Counter]["fqdn"]
-        #OS = AssetInformation["assets"][Counter]["operating_system"]
-        Results += "%s\n" % Hostname
-        #Results += "%s,%s\n" % (Hostname, OS)
-        Counter += 1
-
-    Results = Results.replace("['","")
-    Results = Results.replace("']", "")
-    Results = Results.replace("[]","")
-    Results = Results.replace("'", "")
-    Results = Results.replace(", ", "\n")
-    SaveAgentsToFile(Results,".\Docs\WindowsClient_Assets.txt")
-    print(Results)
-    print(Counter)
-
-    #TODO Separate Assets by OS
-    #TODO CREATE and/or UPDATE OS Target Groups
-
-    print("\nFuck yo couch")
-    return 0
-
-
-
-def CreateTargetGroupsLinux():
-    #TODO Grab Asset Info
-    #url /workbenches/assets?date_range=30&filter.0.quality=match&filter.0.filter=operating_system&filter.0.value=Windows&filter.search_type=and
-    url = 'https://cloud.tenable.com/workbenches/assets?filter.0.quality=match&filter.0.filter=operating_system&filter.0.value=Linux'
-    AssetInformation = (requests.get(url, headers=tenable_header)).json()
-    #AssetInformation = GetAssetsInformation()
-    Counter = 0
-    Results = ""
-    for Asset in AssetInformation["assets"]:
-        Hostname = AssetInformation["assets"][Counter]["fqdn"]
-        #OS = AssetInformation["assets"][Counter]["operating_system"]
-        Results += "%s\n" % Hostname
-        #Results += "%s,%s\n" % (Hostname, OS)
-        Counter += 1
-
-    Results = Results.replace("['","")
-    Results = Results.replace("']", "")
-    Results = Results.replace("[]","")
-    Results = Results.replace("'", "")
-    Results = Results.replace(", ", "\n")
-    SaveAgentsToFile(Results,".\Docs\Linux_Assets.txt")
-    print(Results)
-    print(Counter)
-
-    #TODO Separate Assets by OS
-    #TODO CREATE and/or UPDATE OS Target Groups
-
-    return 0
 
 def DownloadAgentInstallers():
 
@@ -578,6 +549,8 @@ def menu():
     print("9\tDownload Agent Installer Files")
     print("10\tView Agent Information")
     print("11\tSave Agent Vulnerabilities. Provide filename that\n\t\tcontains the hostnames in a column.")
+    print("12\tView Scanner Information")
+    print("13\tUpdate Primary Target Groups for Dashboards.")
     print("\nq\tQuit  (or CTRL+C at any time)\n\n")
     UserResponse = input("Please make your selection: ")
 
@@ -606,11 +579,9 @@ def menu():
     elif UserResponse == "12":
         ViewScannerInformation()
     elif UserResponse == "13":
-        CreateTargetGroupsWinServer()
-    elif UserResponse == "14":
-        CreateTargetGroupsWinClient()
-    elif UserResponse == "15":
-        CreateTargetGroupsLinux()
+        ExportAssetsForTargetGroup()
+
+
 
     elif UserResponse == "q":
         sys.exit(0)
