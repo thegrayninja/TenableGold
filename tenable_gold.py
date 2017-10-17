@@ -429,7 +429,7 @@ def UpdateTargetGroups(GroupID, GroupName, GroupMembers):
     Data["members"] = GroupMembers
     Data["type"] = 'system'
     PostStatus = requests.put(url, headers=tenable_header, data=Data)
-    print(PostStatus.status_code)
+    print("Response Code: {}".format(PostStatus.status_code))
     #print(Data)
 
 
@@ -481,7 +481,7 @@ def SaveAssetsForTargetGroup(URL, FileName, GroupID, GroupName):
     Results = Results.replace("\n", ", ")
     SaveAgentsToFile(Results,FileName)
     UpdateTargetGroups(GroupID, GroupName, Results)
-    print(Counter)
+    print("Assets: {}".format(Counter))
 
 
 
