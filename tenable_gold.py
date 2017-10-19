@@ -4,7 +4,7 @@
 ##save them to their own OS file, hostname only.
 #
 #Current Version: 0.2.5
-#Version Notes: TODO gather assets (mac) and update target groups
+#Version Notes: updates target groups based on filters (Windows, Mac, Linux)
 #
 #Version History
 #ver 0.2.4 - view asset information, save asset vulns to csv
@@ -242,10 +242,10 @@ def ListNeverCheckedIn():
             TotalNeverCheckedIn += 1
         Counter += 1
     print("\n\nTotal Agents that have not checked in: %d" % TotalNeverCheckedIn)
-    ListAgentsFile = open("NeverCheckedInAssets.log", "a")
+    ListAgentsFile = open(".\\Docs\\NeverCheckedInAssets.log", "w")
     ListAgentsFile.write(ListNever)
     ListAgentsFile.close()
-    print("\nThe list has been saved to .\\NeverCheckedInAssets.log")
+    print("\nThe list has been saved to .\\Docs\\NeverCheckedInAssets.log")
 
 
     input("\nPress Return/Enter to Continue...")
@@ -443,24 +443,31 @@ def AddToTargetGroups(GroupID, GroupName, GroupMembers):
 
 def ExportAssetsForTargetGroup():
     # TODO WINSERVER
-    WinServerURL = 'https://cloud.tenable.com/workbenches/assets?filter.0.quality=match&filter.0.filter=operating_system&filter.0.value=Windows Server'
+    #WinServerURL = 'https://cloud.tenable.com/workbenches/assets?filter.0.quality=match&filter.0.filter=operating_system&filter.0.value=Windows%20Server'
+    WinServerURL = 'https://cloud.tenable.com/workbenches/assets?date_range=30&filter.0.quality=match&filter.0.filter=operating_system&filter.0.value=Windows%20Server&filter.search_type=and'
     WinServerFileName = '.\Docs\WindowsServer_Assets.txt'
     WinServerGroupID = '29136'
-    WinServerGroupName = '_WinSRV-Dashboard'
-    WinClientURL = 'https://cloud.tenable.com/workbenches/assets?filter.0.quality=match&filter.0.filter=operating_system&filter.0.value=Windows%207&filter.1.quality=match&filter.1.filter=operating_system&filter.1.value=Windows%2010&filter.search_type=or'
+    WinServerGroupName = '_WindowsServer'
+    WinClientURL = 'https://cloud.tenable.com/workbenches/assets?date_range=30&filter.0.quality=match&filter.0.filter=operating_system&filter.0.value=Windows%207&filter.1.quality=match&filter.1.filter=operating_system&filter.1.value=Windows%2010&filter.search_type=or'
     WinClientFileName = '.\Docs\WindowsClient_Assets.txt'
-    WinClientGroupID = '29138'
+    WinClientGroupID = '29215'
     WinClientGroupName = '_WindowsClients'
-    LinuxURL = 'https://cloud.tenable.com/workbenches/assets?filter.0.quality=match&filter.0.filter=operating_system&filter.0.value=Linux'
+    LinuxURL = 'https://cloud.tenable.com/workbenches/assets?date_range=30&filter.0.quality=match&filter.0.filter=operating_system&filter.0.value=Linux'
     LinuxFileName = '.\Docs\Linux_Assets.txt'
-    LinuxGroupID = '29139'
+    LinuxGroupID = '29319'
     LinuxGroupName = '_Linux'
+    MacOSURL = 'https://cloud.tenable.com/workbenches/assets?date_range=30&filter.0.quality=match&filter.0.filter=operating_system&filter.0.value=Mac%20OS'
+    MacOSFileName = '.\Docs\MacOS_Assets.txt'
+    MacOSGroupID = '29222'
+    MacOSGroupName = '_MacOS'
     print("\nWindows Server:")
     SaveAssetsForTargetGroup(WinServerURL, WinServerFileName, WinServerGroupID, WinServerGroupName)
     print("\nWindows Client:")
     SaveAssetsForTargetGroup(WinClientURL, WinClientFileName, WinClientGroupID, WinClientGroupName)
     print("\nLinux:")
     SaveAssetsForTargetGroup(LinuxURL, LinuxFileName, LinuxGroupID, LinuxGroupName)
+    print("\nMacOS:")
+    SaveAssetsForTargetGroup(MacOSURL, MacOSFileName, MacOSGroupID, MacOSGroupName)
     print("\n\nDone!")
 
 
@@ -469,7 +476,14 @@ def SaveAssetsForTargetGroup(URL, FileName, GroupID, GroupName):
     Counter = 0
     Results = ""
     for Asset in AssetInformation["assets"]:
-        Hostname = AssetInformation["assets"][Counter]["fqdn"]
+        if (AssetInformation["assets"][Counter]["ipv4"] == []):
+            if (AssetInformation["assets"][Counter]["fqdn"] == []):
+                Hostname = AssetInformation["assets"][Counter]["netbios_name"]
+            else:
+                Hostname = AssetInformation["assets"][Counter]["fqdn"]
+        else:
+            Hostname = AssetInformation["assets"][Counter]["ipv4"]
+        #Hostname = AssetInformation["assets"][Counter]["fqdn"]
         Results += "%s\n" % Hostname
         Counter += 1
 
