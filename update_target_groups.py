@@ -30,8 +30,8 @@ def UpdateTargetGroups(GroupID, GroupName, GroupMembers):
     Data["type"] = 'system'
     PostStatus = requests.put(url, headers=tenable_header, data=Data)
     StatusCode = str(PostStatus.status_code)
+    CurrentTime = GetCurrentTime()
     if (StatusCode == "200"):
-        CurrentTime = GetCurrentTime()
         LogData = "\n%s - %s updated successfully on cloud.tenable.com" % (CurrentTime, GroupName)
     else:
         LogData = "\n%s - %s - FAILURE - did not update on cloud.tenable.com" % (CurrentTime, GroupName)
