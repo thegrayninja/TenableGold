@@ -3,10 +3,14 @@
 ##identify agents that do not belong to a group
 ##save them to their own OS file, hostname only.
 #
-#Current Version: 0.2.5
-#Version Notes: updates target groups based on filters (Windows, Mac, Linux)
+#Current Version: 0.2.7
+#Version Notes: due to update by tenable, needed to fix retrieving agent group status. 
+#               adding feature to append new agents to global scan group, with a percentage "bar"
 #
 #Version History
+#ver 0.2.6 - Added ability to create groups, and confirm assets have agents installed via upload
+#           Also fixed various coding compatibility issues after tenable's latest update
+#ver 0.2.5 - update target groups (mac, linux, windows server, windows desktop)
 #ver 0.2.4 - view asset information, save asset vulns to csv
 #ver 0.2.3 - added ReturnAssetsWithoutAgents(), re-ordered menu and defs()
 #ver 0.2.2 - added ListNeverCheckedIn()
@@ -42,8 +46,9 @@ def GetGroupInformation():
 
 
 def GetAgentsInformation():
-    url = 'https://cloud.tenable.com/scanners/1/agents/'
-    return(requests.get(url, headers=tenable_header)).json()
+    url = 'https://cloud.tenable.com/scanners/1/agents/?limit=5000'
+    return(requests.get(url, headers=tenable_header).json())
+
 
 def GetAssetsInformation():
     url = 'https://cloud.tenable.com/workbenches/assets'
@@ -58,7 +63,9 @@ def SaveAgentsToFile(data, filename):
 
 
 def ReadImportedFile():
+    print("\n\nEnter q to return to the main menu.")
     FileName = input("Please Enter the File Name: ")
+
     try:
         TempImportFile = open(FileName, "r")
     except:
@@ -100,7 +107,8 @@ def is_in(agentip, agentid, agentname, UserGroupSelection, AgentHostnames):
         search_string = ss.strip()
         if search_string in agentname:
             url = 'https://cloud.tenable.com/scanners/1/agent-groups/%s/agents/%s' % (UserGroupSelection, agentid)
-            temp_container = requests.put(url, headers=tenable_header)
+            #temp_container = requests.put(url, headers=tenable_header)
+            requests.put(url, headers=tenable_header)
             newentry = ("%s - %s was added to the group %s" % (agentip, agentname, UserGroupSelection))
             newFile = open("tenable_added_to_group.log", "a")
             newFile.write("%s\n" % (newentry))
@@ -148,7 +156,18 @@ def AgentGroupExist():
     AgentInfo = GetAgentsInformation()
     print("\n\nThe following assets do not belong to a group:\n")
     for i in (AgentInfo["agents"]):
-        if AgentInfo["agents"][counter]["groups"] == None:
+
+        AssetGroups = (AgentInfo["agents"][counter]).get("groups", 0)
+        #xx = x.get("groups", 0)
+        #try:
+        #    AllGroups = ""
+        #    for i in xx:
+        #        AllGroups += "%s," % (i.get("name"))
+        #    print(AllGroups)
+        #except:
+        #    print("not in a group")
+
+        if AssetGroups == 0:
             AgentName = AgentInfo["agents"][counter]["name"]
             AgentOS = AgentInfo["agents"][counter]["platform"]
             TotalUnassigned += 1
@@ -161,6 +180,7 @@ def AgentGroupExist():
                 WindowsAgentGroupNull += "%s\n" % AgentName
             else:
                 UnknownAgentGroupNull += "%s\n" % AgentName
+
 
         counter += 1
     input("\nPress Return/Enter to Continue...")
@@ -255,12 +275,35 @@ def ListNeverCheckedIn():
 
 
 
+def SaveAgentsToGroup(agentip, agentid, agentname, UserGroupSelection, AgentHostnames):
+    for ss in AgentHostnames:
+        search_string = ss.strip()
+        url = 'https://cloud.tenable.com/scanners/1/agent-groups/%s/agents/%s' % (UserGroupSelection, agentid)
+        #print(url)
+        #print(search_string)
+        if search_string.lower() in agentname.lower():
+            url = 'https://cloud.tenable.com/scanners/1/agent-groups/%s/agents/%s' % (UserGroupSelection, agentid)
+            #temp_container = requests.put(url, headers=tenable_header)
+            requests.put(url, headers=tenable_header)
+            newentry = ("%s - %s was added to the group %s" % (agentip, agentname, UserGroupSelection))
+            newFile = open("tenable_added_to_group.log", "a")
+            newFile.write("%s\n" % (newentry))
+            newFile.close()
+            print(newentry)
+            time.sleep(.3)
+            #print("%s-%s\n" % (search_string, agentid))
+            global added_count
+            added_count += 1
+
+
+
 def AddAgentsToGroup():
     AgentHostnames = ReadImportedFile()
     ShowGroups()
     UserGroupSelection = input("Please Enter Group ID: ")
 
     AgentInfo = GetAgentsInformation()
+    #print(AgentInfo)
     Counter = 0
     Results = ""
     AgentsScanned = ""
@@ -268,7 +311,8 @@ def AddAgentsToGroup():
         AgentIP = AgentInfo["agents"][Counter]["ip"]
         AgentName = AgentInfo["agents"][Counter]["name"]
         AgentID = AgentInfo["agents"][Counter]["id"]
-        is_in(AgentIP, AgentID, AgentName, UserGroupSelection, AgentHostnames)
+        SaveAgentsToGroup(AgentIP, AgentID, AgentName, UserGroupSelection, AgentHostnames)
+        #print(AgentName)
         Counter += 1
     print(added_count)
     input("\nPress Return/Enter to Continue...")
@@ -454,7 +498,7 @@ def ExportAssetsForTargetGroup():
     WinClientGroupName = '_WindowsClients'
     LinuxURL = 'https://cloud.tenable.com/workbenches/assets?date_range=30&filter.0.quality=match&filter.0.filter=operating_system&filter.0.value=Linux'
     LinuxFileName = '.\Docs\Linux_Assets.txt'
-    LinuxGroupID = '29319'
+    LinuxGroupID = '29139'
     LinuxGroupName = '_Linux'
     MacOSURL = 'https://cloud.tenable.com/workbenches/assets?date_range=30&filter.0.quality=match&filter.0.filter=operating_system&filter.0.value=Mac%20OS'
     MacOSFileName = '.\Docs\MacOS_Assets.txt'
@@ -489,6 +533,7 @@ def SaveAssetsForTargetGroup(URL, FileName, GroupID, GroupName):
 
     Results = Results.replace("['","")
     Results = Results.replace("']", "")
+    Results = Results.replace("[u", "")
     Results = Results.replace("[]","")
     Results = Results.replace("'", "")
     Results = Results.replace(", ", "\n")
@@ -496,6 +541,104 @@ def SaveAssetsForTargetGroup(URL, FileName, GroupID, GroupName):
     SaveAgentsToFile(Results,FileName)
     UpdateTargetGroups(GroupID, GroupName, Results)
     print("Assets: {}".format(Counter))
+
+
+def CreateAgentGroup():
+    GroupName = input("\n\nPlease enter the Group Name: ")
+    Data = {}
+    Data["name"] = GroupName
+
+    url = 'https://cloud.tenable.com/scanners/1/agent-groups/'
+    # temp_container = requests.put(url, headers=tenable_header)
+    Results = requests.post(url, headers=tenable_header, data=Data)
+    print(Results.content)
+
+    input("\nPress Return/Enter to Continue...")
+    menu()
+    return 0
+
+
+
+
+def CheckIfAgentExists():
+    print("\n\nTo see if an asset contains an agent, please enter the filename containing the host names (column sorted).")
+    Counter = 0
+    AgentInstalled = []
+    AgentMissing = []
+    AssetNames = ReadImportedFile()
+    AgentInfo = GetAgentsInformation()
+
+
+    for Asset in AssetNames:
+        Installed = "no"
+        for Agent in (AgentInfo["agents"]):
+            Installed = "yes"
+            if Asset.strip() in AgentInfo["agents"][Counter]["name"]:
+                Installed = "yes"
+                break
+            else:
+                #Installed = "no"
+                continue
+
+        if Installed == "yes":
+            AgentInstalled.append(Asset.strip())
+        else:
+            AgentMissing.append(Asset.strip())
+
+
+        Counter += 1
+
+    print("\n\nAgents Installed on the following hosts:\n%s" % (AgentInstalled))
+    print("\n\nAgents MISSING from the following hosts:\n%s" % (AgentMissing))
+
+
+    input("\nPress Return/Enter to Continue...")
+    menu()
+
+
+def AppendGlobalScanGroups():
+    Counter = 0
+    TotalUnassigned = 0
+    AgentInfo = GetAgentsInformation()
+
+    GroupURL = 'https://cloud.tenable.com/scanners/1/agent-groups/11'
+    BHNGlobalAgentsJson = requests.get(GroupURL, headers=tenable_header).json()
+    BHNGlobalAgents = BHNGlobalAgentsJson["agents"]
+    BHNAgents = []
+    AgentCounter = 0
+    for i in BHNGlobalAgents:
+        BHNAgents.append(BHNGlobalAgents[AgentCounter]["id"])
+        AgentCounter +=1
+
+
+    TotalAgents = 0
+    for i in (AgentInfo["agents"]):
+        TotalAgents +=1
+
+    for i in (AgentInfo["agents"]):
+        AgentAll = AgentInfo["agents"][Counter]
+        AgentID = AgentAll.get("id", 0)
+        if AgentID not in BHNAgents:
+            URL = 'https://cloud.tenable.com/scanners/1/agent-groups/11/agents/%s'  % (AgentID)
+            requests.put(URL, headers=tenable_header)
+        else:
+            print("%s is already in BHN Global" %(AgentID))
+
+        if (Counter + 1) == TotalAgents:
+            print("100%")
+        elif (Counter+1)%15 == 0:
+            Percentage = ((Counter+1)/TotalAgents)*100
+            print("%s%s" %(Percentage, '%'))
+
+
+        Counter += 1
+    print("BHN Global scan group now contains (roughly) %d agents." %(Counter+1))
+
+
+    input("\nPress Return/Enter to Continue...")
+    menu()
+    return(0)
+
 
 
 
@@ -549,8 +692,44 @@ def DownloadAgentInstallers():
 
 
 
+def TroubleshootAgentJson():
+    #x = ""
+    #y = GetAgentsInformation()
+    #for i in y:
+    #    x += i
+    #SaveAgentsToFile(x,"troubleshoot_agents.json")
+    #print("\nYour data was saved to troubleshoot_agents.json.")
+
+    #print(GetAgentsInformation())
+
+#    input("\nPress Return/Enter to Continue...")
+#   menu()
+    count = 0
+    x = [1,2,3,4,5,5,5,5,5,5,5,5,4,3,3,2,2,2,5,6,4,2]
+    for i in x:
+        count += 1
+
+
+    #print(count)
+    counter = 0
+    for i in x:
+        #print ((counter + 1)/15)
+        if (counter + 1) == count:
+            print("100%")
+        elif (counter+1)%15 == 0:
+            Percentage = ((counter+1)/count)*100
+            print("%s%s" %(Percentage, '%'))
+
+
+        counter +=1
+
+    return(0)
+
+
 
 def menu():
+    global added_count
+    added_count = 0 #to reset the value
     print("\n\n\nAvailable Options\n")
     print("1\tGet Count of All Agents")
     print("2\tGet Count of All Assets")
@@ -565,6 +744,9 @@ def menu():
     print("11\tSave Agent Vulnerabilities. Provide filename that\n\t\tcontains the hostnames in a column.")
     print("12\tView Scanner Information")
     print("13\tUpdate Primary Target Groups for Dashboards.")
+    print("14\tCreate Agent Group")
+    print("15\tConfirm Specific Assets have an Agent Linked")
+    print("16\tAppend Global Scanning Groups")
     print("\nq\tQuit  (or CTRL+C at any time)\n\n")
     UserResponse = input("Please make your selection: ")
 
@@ -594,6 +776,14 @@ def menu():
         ViewScannerInformation()
     elif UserResponse == "13":
         ExportAssetsForTargetGroup()
+    elif UserResponse == "14":
+        CreateAgentGroup()
+    elif UserResponse == "15":
+        CheckIfAgentExists()
+    elif UserResponse == "16":
+        AppendGlobalScanGroups()
+    elif UserResponse == "99":
+        TroubleshootAgentJson()
 
 
 
