@@ -601,7 +601,7 @@ def AppendGlobalScanGroups():
     TotalUnassigned = 0
     AgentInfo = GetAgentsInformation()
 
-    GroupURL = 'https://cloud.tenable.com/scanners/1/agent-groups/11'
+    GroupURL = 'https://cloud.tenable.com/scanners/1/agent-groups/11/?limit=5000'
     BHNGlobalAgentsJson = requests.get(GroupURL, headers=tenable_header).json()
     BHNGlobalAgents = BHNGlobalAgentsJson["agents"]
     BHNAgents = []
