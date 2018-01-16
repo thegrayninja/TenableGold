@@ -4,12 +4,10 @@
 ##save them to their own OS file, hostname only.
 #
 #Current Version: 0.2.7
-#Version Notes: due to update by tenable, needed to fix retrieving agent group status. 
-#               adding feature to append new agents to global scan group, with a percentage "bar"
+#Version Notes: Added ability to create groups, and confirm assets have agents installed via upload
+#               Also fixed various coding compatibility issues after tenable's latest update
 #
 #Version History
-#ver 0.2.6 - Added ability to create groups, and confirm assets have agents installed via upload
-#           Also fixed various coding compatibility issues after tenable's latest update
 #ver 0.2.5 - update target groups (mac, linux, windows server, windows desktop)
 #ver 0.2.4 - view asset information, save asset vulns to csv
 #ver 0.2.3 - added ReturnAssetsWithoutAgents(), re-ordered menu and defs()
@@ -577,7 +575,7 @@ def CheckIfAgentExists():
                 Installed = "yes"
                 break
             else:
-                #Installed = "no"
+                Installed = "no"
                 continue
 
         if Installed == "yes":
@@ -619,7 +617,7 @@ def AppendGlobalScanGroups():
         AgentAll = AgentInfo["agents"][Counter]
         AgentID = AgentAll.get("id", 0)
         if AgentID not in BHNAgents:
-            URL = 'https://cloud.tenable.com/scanners/1/agent-groups/11/agents/%s'  % (AgentID)
+            URL = 'https://cloud.tenable.com/scanners/1/agent-groups/11/agents/%s/' % (AgentID)
             requests.put(URL, headers=tenable_header)
         else:
             print("%s is already in BHN Global" %(AgentID))
@@ -662,10 +660,10 @@ def DownloadAgentInstallers():
         SaveFolder = r'.\Agents'
         if not os.path.exists(SaveFolder):
             os.makedirs(SaveFolder)
-        AgentList = "-x64.msi"
+
         for Agent in AgentList:
             AgentFileName = AgentVersion.strip() + Agent.strip()
-            PSDownloadCommand = 'Invoke-WebRequest -OutFile %s -URI "http://downloads.nessus.org/nessus3dl.php?file=%s&licence_accept=yes&t=%s"' % (AgentFileName, AgentFileName, TenableCookie)
+            PSDownloadCommand = 'Invoke-WebRequest -OutFile .\Agents\%s -URI "http://downloads.nessus.org/nessus3dl.php?file=%s&licence_accept=yes&t=%s"' % (AgentFileName, AgentFileName, TenableCookie)
             subprocess.call(["powershell.exe", PSDownloadCommand])
 
         print("\n\n\n\t\t**Download is complete**")
@@ -746,7 +744,7 @@ def menu():
     print("13\tUpdate Primary Target Groups for Dashboards.")
     print("14\tCreate Agent Group")
     print("15\tConfirm Specific Assets have an Agent Linked")
-    print("16\tAppend Global Scanning Groups")
+    print("16\tAppend Agents to BHNGlobal")
     print("\nq\tQuit  (or CTRL+C at any time)\n\n")
     UserResponse = input("Please make your selection: ")
 
