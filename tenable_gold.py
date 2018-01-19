@@ -688,6 +688,27 @@ def DownloadAgentInstallers():
     menu()
     return(0)
 
+def GetAgentHostnameViaIP():
+    AgentInfo = GetAgentsInformation()
+    ImportIPFile = input("Please Enter the filename that contains your ip addresses (column listed): ")
+    TempIPFile = open(ImportIPFile, "r")
+    ImportIPList = TempIPFile.readlines()
+    TempIPFile.close()
+    Counter = 0
+    for Asset in AgentInfo["agents"]:
+        for IP in ImportIPList:
+            IPStripped = IP.strip()
+            if IPStripped in AgentInfo["agents"][Counter]["ip"]:
+                AgentName = (AgentInfo["agents"][Counter]["name"])
+                AgentIP = (AgentInfo["agents"][Counter]["ip"])
+                #AgentID = (AgentInfo["agents"][Counter]["id"])
+                print ("%s, %s" % (AgentName, AgentIP))
+        Counter += 1
+
+    input("\nPress Return/Enter to Continue...")
+    menu()
+    return 0
+
 
 
 def TroubleshootAgentJson():
@@ -745,6 +766,7 @@ def menu():
     print("14\tCreate Agent Group")
     print("15\tConfirm Specific Assets have an Agent Linked")
     print("16\tAppend Agents to BHNGlobal")
+    print("17\tGet Hostnames via IP")
     print("\nq\tQuit  (or CTRL+C at any time)\n\n")
     UserResponse = input("Please make your selection: ")
 
@@ -780,6 +802,8 @@ def menu():
         CheckIfAgentExists()
     elif UserResponse == "16":
         AppendGlobalScanGroups()
+    elif UserResponse == "17":
+        GetAgentHostnameViaIP()
     elif UserResponse == "99":
         TroubleshootAgentJson()
 
