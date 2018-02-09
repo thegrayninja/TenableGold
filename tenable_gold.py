@@ -3,11 +3,12 @@
 ##identify agents that do not belong to a group
 ##save them to their own OS file, hostname only.
 #
-#Current Version: 0.2.7
-#Version Notes: Added ability to create groups, and confirm assets have agents installed via upload
-#               Also fixed various coding compatibility issues after tenable's latest update
+#Current Version: 0.2.8
+#Version Notes: Added extra info to "view agent info"
 #
 #Version History
+#ver 0.2.7 - Added ability to create groups, and confirm assets have agents installed via upload
+#            Also fixed various coding compatibility issues after tenable's latest update
 #ver 0.2.5 - update target groups (mac, linux, windows server, windows desktop)
 #ver 0.2.4 - view asset information, save asset vulns to csv
 #ver 0.2.3 - added ReturnAssetsWithoutAgents(), re-ordered menu and defs()
@@ -398,6 +399,7 @@ def ViewAgentInformation():
     ImportHostList = TempHostFile.readlines()
     TempHostFile.close()
     Counter = 0
+    print("AGENT NAME, AGENT UUID, AGENT ID, AGENT STATUS, LAST SCANNED, LAST CONNECTED")
     for Asset in AgentInfo["agents"]:
         for Host in ImportHostList:
             HostStripped = Host.strip()
@@ -405,7 +407,28 @@ def ViewAgentInformation():
                 AgentName = (AgentInfo["agents"][Counter]["name"])
                 AgentUuid = (AgentInfo["agents"][Counter]["uuid"])
                 AgentID = (AgentInfo["agents"][Counter]["id"])
-                print ("%s, %s, %s" % (AgentName, AgentUuid, AgentID))
+                AgentStatus = (AgentInfo["agents"][Counter]["status"])
+                AgentLastScanned = (AgentInfo["agents"][Counter]["last_scanned"])
+                AgentLastConnect = (AgentInfo["agents"][Counter]["last_connect"])
+
+                if AgentStatus == "on":
+                    AgentStatusEnglish = "Recently Linked to Cloud"
+                elif AgentStatus == "off":
+                    AgentStatusEnglish = "Appears to be Offline"
+                else:
+                    AgentStatusEnglish = "Agent appears to be busy"
+
+                try:
+                    LastScannedTime = time.ctime(AgentLastScanned)
+                except:
+                    LastScannedTime = "Never Scanned"
+
+                try:
+                    LastConnectedTime = time.ctime(AgentLastConnect)
+                except:
+                    LastConnectedTime = "Never Connected"
+
+                print ("%s, %s, %s, %s, %s, %s" % (AgentName, AgentUuid, AgentID, AgentStatusEnglish, LastScannedTime, LastConnectedTime))
         Counter += 1
 
     input("\nPress Return/Enter to Continue...")
@@ -647,7 +670,7 @@ def DownloadAgentInstallers():
                   "-es6.x86_64.rpm", "-es7.x86_64.rpm", "-fc20.x86_64.rpm",
                   "-suse11.x86_64.rpm", "-suse12.x86_64.rpm", "-ubuntu910_amd64.deb",
                   "-ubuntu1110_amd64.deb", ".dmg", "-x64.msi"]
-
+    print("\n\nGo here for the latest version number: https://www.tenable.com/downloads/nessus-agents\n")
     AgentVersion = input("Please enter the Agent Version (Ex: NessusAgent-6.11.1):")
     print("\nNOTE: You must enter the License Agreement Cookie. No way around this that I have discovered.")
     print("To get your cookie, go here: http://www.tenable.com/products/nessus/select-your-operating-system#tos")
@@ -766,7 +789,7 @@ def menu():
     print("14\tCreate Agent Group")
     print("15\tConfirm Specific Assets have an Agent Linked")
     print("16\tAppend Agents to BHNGlobal")
-    print("17\tGet Hostnames via IP")
+    print("17\tGet Hostnames via IP (Based off Agents)")
     print("\nq\tQuit  (or CTRL+C at any time)\n\n")
     UserResponse = input("Please make your selection: ")
 
