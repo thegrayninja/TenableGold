@@ -330,10 +330,18 @@ def GenerateVulnReport():
         InfoData = (requests.get(InfoURL, headers=tenable_header)).json()
 
         AssetFQDN = InfoData["info"]["fqdn"]
+        for i in AssetFQDN:
+            AssetFQDN = i
         AssetIPv4 = InfoData["info"]["ipv4"]
+        for i in AssetIPv4:
+            AssetIPv4 = i
         AssetLastScanned = InfoData["info"]["last_licensed_scan_date"]
         AssetNetBIOS = InfoData["info"]["netbios_name"]
+        for i in AssetNetBIOS:
+            AssetNetBIOS = i
         AssetOS = InfoData["info"]["operating_system"]
+        for i in AssetOS:
+            AssetOS = i
 
         VulnURL = "https://cloud.tenable.com/workbenches/assets/%s/vulnerabilities" % AssetID
         VulnData = (requests.get(VulnURL, headers=tenable_header)).json()
@@ -358,9 +366,10 @@ def GenerateVulnReport():
                 VulnSeverity = "Unknown"
 
             VulnCounter += 1
-            Vulnerabilities = "%s,%s,%s,%s,%s,%s,%s,%s,%s\n" %(AssetFQDN, AssetIPv4, VulnSeverity, PluginName, PluginID, PluginFamily, AssetNetBIOS, AssetOS, AssetLastScanned)
-            print(Vulnerabilities)
-            FinalReport += Vulnerabilities
+            if VSeverity != 0:
+                Vulnerabilities = "%s,%s,%s,%s,%s,%s,%s,%s,%s\n" %(AssetFQDN, AssetIPv4, VulnSeverity, PluginName, PluginID, PluginFamily, AssetNetBIOS, AssetOS, AssetLastScanned)
+                print(Vulnerabilities)
+                FinalReport += Vulnerabilities
 
 
 
@@ -374,7 +383,6 @@ def GenerateVulnReport():
     #TODO Save as temp or append to csv
     #TODO Setup previous rules in a for-loop to attack all assets
     #TODO Save file to csv
-
 
 
 
