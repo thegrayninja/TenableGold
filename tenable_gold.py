@@ -314,6 +314,7 @@ def DeleteAgents(AgentIDs):
 def GenerateVulnReport():
     #TODO Make Request Based on filters to gather asset ids
 
+    FinalReport = "FQDN,IPv4,Severity,PluginName,PluginID,PluginFamily,NetBIOS,OS,LastScanned\n"
     WinServerGroupID = "29136"
     WinClientGroupID = "29215"
     LinuxGroupID = "29139"
@@ -336,9 +337,35 @@ def GenerateVulnReport():
 
         VulnURL = "https://cloud.tenable.com/workbenches/assets/%s/vulnerabilities" % AssetID
         VulnData = (requests.get(VulnURL, headers=tenable_header)).json()
-        
-        print("%s,%s\n" %(AssetFQDN, AssetIPv4))
+
+        VulnCounter = 0
+        for i in VulnData["vulnerabilities"]:
+            PluginFamily = VulnData["vulnerabilities"][VulnCounter]["plugin_family"]
+            PluginID = VulnData["vulnerabilities"][VulnCounter]["plugin_id"]
+            PluginName = VulnData["vulnerabilities"][VulnCounter]["plugin_name"]
+            VSeverity = VulnData["vulnerabilities"][VulnCounter]["severity"]
+            if VSeverity == 0:
+                VulnSeverity =  "Info"
+            elif VSeverity == 1:
+                VulnSeverity =  "Low"
+            elif VSeverity == 2:
+                VulnSeverity =  "Medium"
+            elif VSeverity == 3:
+                VulnSeverity = "High"
+            elif VulnSeverity == 4:
+                VulnSeverity = "Critical"
+            else:
+                VulnSeverity = "Unknown"
+
+            VulnCounter += 1
+            Vulnerabilities = "%s,%s,%s,%s,%s,%s,%s,%s,%s\n" %(AssetFQDN, AssetIPv4, VulnSeverity, PluginName, PluginID, PluginFamily, AssetNetBIOS, AssetOS, AssetLastScanned)
+            print(Vulnerabilities)
+            FinalReport += Vulnerabilities
+
+
+
         Counter += 1
+    SaveAgentsToFile(FinalReport, ".\Docs\\report_test.csv")
 
     #TODO Pull asset info based on asset id
     #TODO Save data to variables
