@@ -37,9 +37,10 @@ def menu():
     #to reset the value
     print("\n\n\nAvailable Options\n")
     print("1\tAdd Agent(s) to a Group")
-    print("2\tAgent Count - returns a numerical value")
-    print("3\tAsset Count - returns a numerical value")
+    print("2\tView Stale Agents")
+    print("3\tDelete Stale Agents")
     print("4\tCheck if Agents are Installed against a list of hosts")
+    print("5\tGenerate Vuln Report")
 
     print("\nq\tQuit  (or CTRL+C at any time)\n\n")
     UserResponse = input("Please make your selection: ")
@@ -47,13 +48,13 @@ def menu():
     if UserResponse == "1":
         AddAgentsToGroup()
     elif UserResponse == "2":
-        AgentCount()
+        ViewStaleAgents()
     elif UserResponse == "3":
-        AssetCount()
+        DeleteStaleAgents()
     elif UserResponse == "4":
         CheckIfAgentInstalled()
     elif UserResponse == "5":
-        ViewStaleAgents()
+        GenerateVulnReport()
 
     elif UserResponse == "q":
         sys.exit(0)
@@ -204,6 +205,153 @@ def SaveAgentsToGroup(agentip, agentid, agentname, UserGroupSelection, AgentHost
 #### ADDING AGENTS TO GROUP - END ####
 
 
+def ViewStaleAgents():
+    #agents that are part of a group which have not scanned within 120 days
+    ListDeletedAgents = ""
+    DeletedCount = 0
+    TimeDiff = 15745300 #roughly 120 days
+    Counter = 0
+    AgentInfo = GetAgentsInformation()
+    StaleAgents = 0
+    for i in (AgentInfo["agents"]):
+        AgentIP = AgentInfo["agents"][Counter]["ip"]
+        AgentName = AgentInfo["agents"][Counter]["name"]
+        AgentID = AgentInfo["agents"][Counter]["id"]
+        try:
+            LastScanned = (AgentInfo["agents"][Counter]["last_scanned"])
+        except:
+            LastScanned = 9000000000
+        try:
+            if (LastScanned + TimeDiff) < time.time():
+                Age = 1
+                StaleAgents += 1
+            else:
+                Age = 0
+        except:
+            Age = 0
+        if Age == 1:
+            LastScannedTime = time.strftime('%Y-%m-%d,%H:%M:%S', time.localtime(LastScanned))
+            print("%s,%s,%s,%s" % (AgentIP, AgentName, AgentID, LastScannedTime))
+        Counter += 1
+    print("\nStale Agents: %d\n" % StaleAgents)
+
+
+
+
+def DeleteStaleAgents():
+    #agents that are part of a group which have not scanned within 120 days
+    ListDeletedAgentsHeader = "AgentIP,AgentName,AgentID,DateLastScanned,TimeLastScanned"
+    ListDeletedAgents = ""
+    #DeletedCount = 0
+    TimeDiff = 15745300 #roughly 120 days
+    Counter = 0
+    AgentInfo = GetAgentsInformation()
+    StaleAgents = 0
+    DeleteAgentIDs = []
+    for i in (AgentInfo["agents"]):
+        AgentIP = AgentInfo["agents"][Counter]["ip"]
+        AgentName = AgentInfo["agents"][Counter]["name"]
+        AgentID = AgentInfo["agents"][Counter]["id"]
+        try:
+            LastScanned = (AgentInfo["agents"][Counter]["last_scanned"])
+        except:
+            LastScanned = 9000000000
+        try:
+            if (LastScanned + TimeDiff) < time.time():
+                Age = 1
+                StaleAgents += 1
+            else:
+                Age = 0
+        except:
+            Age = 0
+        if Age == 1:
+            LastScannedTime = time.strftime('%Y-%m-%d,%H:%M:%S', time.localtime(LastScanned))
+            ListDeletedAgents += "%s,%s,%s,%s\n" % (AgentIP, AgentName, AgentID, LastScannedTime)
+            DeleteAgentIDs.append(AgentID)
+        Counter += 1
+
+    print(ListDeletedAgentsHeader + "\n" + ListDeletedAgents)
+    print("\nStale Agents: %d\n" % StaleAgents)
+    UserValue = 0
+    while UserValue == 0:
+        UserInput = input("Would you like to delete these stale agents? [y/n]: ")
+        try:
+            if UserInput[0].lower() == "y":
+                UserValue = 1
+                DeleteAgents(DeleteAgentIDs)
+                print('deleted')
+            elif UserInput[0].lower() == "n":
+                UserValue = 1
+                print('not deleted')
+            else:
+                print('ehh, try again')
+        except:
+            UserValue = 0
+            print("next time don't leave it blank")
+
+    DeletedAgentsFile = open("DeletedStaleAssets.log", "a")
+    DeletedAgentsFile.write("%s\n" % ListDeletedAgents)
+    DeletedAgentsFile.close()
+
+
+def DeleteAgents(AgentIDs):
+    DeletedCount = 0
+    try:
+        for i in AgentIDs:
+            print(i)
+            DeletedCount += 1
+    except:
+        print("error deleting agents")
+    print("Deleted Agents: %s" % DeletedCount)
+
+
+
+
+
+
+
+
+def GenerateVulnReport():
+    #TODO Make Request Based on filters to gather asset ids
+
+    WinServerGroupID = "29136"
+    WinClientGroupID = "29215"
+    LinuxGroupID = "29139"
+    MacOSGroupID = "29222"
+    CDEBHNGroupID = "29838"
+
+    URL = "https://cloud.tenable.com/workbenches/assets/vulnerabilities?filter.0.quality=match&filter.0.filter=target_group&filter.0.value=29838&filter.1.quality=match&filter.1.filter=severity&filter.1.value=critical"
+    RequestData = (requests.get(URL, headers=tenable_header)).json()
+    Counter = 0
+    for i in RequestData["assets"]:
+        AssetID = RequestData["assets"][Counter]["id"]
+        InfoURL = "https://cloud.tenable.com/workbenches/assets/%s/info" % AssetID
+        InfoData = (requests.get(InfoURL, headers=tenable_header)).json()
+
+        AssetFQDN = InfoData["info"]["fqdn"]
+        AssetIPv4 = InfoData["info"]["ipv4"]
+        AssetLastScanned = InfoData["info"]["last_licensed_scan_date"]
+        AssetNetBIOS = InfoData["info"]["netbios_name"]
+        AssetOS = InfoData["info"]["operating_system"]
+
+        VulnURL = "https://cloud.tenable.com/workbenches/assets/%s/vulnerabilities" % AssetID
+        VulnData = (requests.get(VulnURL, headers=tenable_header)).json()
+        
+        print("%s,%s\n" %(AssetFQDN, AssetIPv4))
+        Counter += 1
+
+    #TODO Pull asset info based on asset id
+    #TODO Save data to variables
+    #TODO Pull vuln data based off asset id
+    #TODO Save data to variable and merge with asset info
+    #TODO Save as temp or append to csv
+    #TODO Setup previous rules in a for-loop to attack all assets
+    #TODO Save file to csv
+
+
+
+
+
 
 
 
@@ -214,23 +362,7 @@ def SaveAgentsToGroup(agentip, agentid, agentname, UserGroupSelection, AgentHost
 
 
 
-def ViewStaleAgents():
-    #agents that are part of a group which have not scanned within 120 days
-    ListDeletedAgents = ""
-    DeletedCount = 0
-    TimeDiff = 15745300 #roughly 120 days
-    Counter = 0
-    AgentInfo = GetAgentsInformation()
-    for i in (AgentInfo["agents"]):
-        AgentIP = AgentInfo["agents"][Counter]["ip"]
-        AgentName = AgentInfo["agents"][Counter]["name"]
-        AgentID = AgentInfo["agents"][Counter]["id"]
-        try:
-            Age = (LastScanned + TimeDiff) < time.time()
-        except:
-            Age = "0"
-        print("%s, %s, %s, %s" % (AgentIP, AgentName, AgentID, Age))
-        Counter += 1
+
 
 
 
