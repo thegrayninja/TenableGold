@@ -19,9 +19,14 @@ from auth_file import tenable_header
 
 def main():
     CheckPythonVersion()
+    CreateFolderStructure()
     print("\n\n\n\n\t\tWelcome To Tenable - Gold!\n")
     print("\t\tThe Number 1 API Utility for Tenable.io")
     menu()
+
+
+def GetOSVersion():
+    return(platform.system())
 
 
 def CheckPythonVersion():
@@ -31,6 +36,26 @@ def CheckPythonVersion():
     else:
         print("\n\nPlease run Python 3.x or newer\n")
         sys.exit(1)
+
+
+
+def CreateFolderStructure():
+    if "Windows" in GetOSVersion():
+        SaveFolder1 = r'.\Docs'
+        if not os.path.exists(SaveFolder1):
+            os.makedirs(SaveFolder1)
+        SaveFolder2 = r'.\Reports'
+        if not os.path.exists(SaveFolder2):
+            os.makedirs(SaveFolder2)
+    else:
+        SaveFolder1 = r'./Docs'
+        if not os.path.exists(SaveFolder1):
+            os.makedirs(SaveFolder1)
+        SaveFolder2 = r'./Reports'
+        if not os.path.exists(SaveFolder2):
+            os.makedirs(SaveFolder2)
+
+
 
 
 def menu():
@@ -66,8 +91,7 @@ def menu():
 
 #### ADMIN INFO GATHERING - START ####
 
-def GetOSVersion():
-    return(platform.system())
+
 
 def GetGroupInformation():
     return((requests.get('https://cloud.tenable.com/scanners/1/agent-groups', headers=tenable_header)).json())
@@ -312,14 +336,10 @@ def DeleteAgents(AgentIDs):
 
 
 def GenerateVulnReport():
-    #TODO Make Request Based on filters to gather asset ids
+    #Currently Set for all assets in target group CDE-BHN
 
     FinalReport = "FQDN,IPv4,Severity,PluginName,PluginID,PluginFamily,NetBIOS,OS,LastScanned\n"
-    WinServerGroupID = "29136"
-    WinClientGroupID = "29215"
-    LinuxGroupID = "29139"
-    MacOSGroupID = "29222"
-    CDEBHNGroupID = "29838"
+    #CDEBHNGroupID = "29838"
 
     URL = "https://cloud.tenable.com/workbenches/assets/vulnerabilities?filter.0.quality=match&filter.0.filter=target_group&filter.0.value=29838&filter.1.quality=match&filter.1.filter=severity&filter.1.value=critical"
     RequestData = (requests.get(URL, headers=tenable_header)).json()
@@ -360,7 +380,7 @@ def GenerateVulnReport():
                 VulnSeverity =  "Medium"
             elif VSeverity == 3:
                 VulnSeverity = "High"
-            elif VulnSeverity == 4:
+            elif VSeverity == 4:
                 VulnSeverity = "Critical"
             else:
                 VulnSeverity = "Unknown"
@@ -374,17 +394,12 @@ def GenerateVulnReport():
 
 
         Counter += 1
-    SaveAgentsToFile(FinalReport, ".\Docs\\report_test.csv")
-
-    #TODO Pull asset info based on asset id
-    #TODO Save data to variables
-    #TODO Pull vuln data based off asset id
-    #TODO Save data to variable and merge with asset info
-    #TODO Save as temp or append to csv
-    #TODO Setup previous rules in a for-loop to attack all assets
-    #TODO Save file to csv
-
-
+    if "Windows" in GetOSVersion():
+        FileName = ".\Reports\CDE-%s.csv" % time.strftime('%Y-%m-%d', time.localtime())
+        SaveAgentsToFile(FinalReport, FileName)
+    else:
+        FileName = "./Reports/CDE-%s.csv" % time.strftime('%Y-%m-%d', time.localtime())
+        SaveAgentsToFile(FinalReport, FileName)
 
 
 
@@ -393,7 +408,7 @@ def GenerateVulnReport():
 
 #### ^^^^^ USEFUL ####
 
-#### .... (down arrow) .... NEEDS TESTING ####
+#### .... vvvvvv .... NEEDS TESTING ####
 
 
 
