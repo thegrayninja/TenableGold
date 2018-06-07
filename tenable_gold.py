@@ -66,6 +66,7 @@ def menu():
     print("3\tDelete Stale Agents")
     print("4\tCheck if Agents are Installed against a list of hosts")
     print("5\tGenerate Vuln Report")
+    print("6\tView Agents in Group")
 
     print("\nq\tQuit  (or CTRL+C at any time)\n\n")
     UserResponse = input("Please make your selection: ")
@@ -80,6 +81,8 @@ def menu():
         CheckIfAgentInstalled()
     elif UserResponse == "5":
         GenerateVulnReport()
+    elif UserResponse == "6":
+        GetAssetsInGroup()
 
     elif UserResponse == "q":
         sys.exit(0)
@@ -196,11 +199,17 @@ def AddAgentsToGroup():
 def ShowGroups():
     GroupInfo = GetGroupInformation()
     counter = 0
+    KeyList = {}
     for i in (GroupInfo["groups"]):
         GroupName = GroupInfo["groups"][counter]["name"]
         GroupID = GroupInfo["groups"][counter]["id"]
-        print("ID: %s\tName: %s" %(GroupID, GroupName))
+        #print("ID: %s\tName: %s" %(GroupID, GroupName))
+        KeyList[GroupName] = GroupID
         counter += 1
+    print("Name, ID")
+    for key in sorted(KeyList):
+        print("{}, {}".format(key, KeyList[key]))
+
 
 
 
@@ -404,6 +413,32 @@ def GenerateVulnReport():
 
 
 
+def GetAssetsInGroup():
+    ShowGroups()
+    GroupID = input("\nPlease enter the GroupID: ")
+    URL = "https://cloud.tenable.com/scanners/1/agent-groups/{}".format(GroupID)
+    Data = (requests.get(URL, headers=tenable_header)).json()
+    Counter = 0
+
+    SaveMyStuff = "Name,Platform,Distro,Status,LastConnected\n"
+    for i in Data["agents"]:
+        Name = Data["agents"][Counter]["name"]
+        Platform = Data["agents"][Counter]["platform"]
+        Distro = Data["agents"][Counter]["ip"]
+        try:
+            Epoch = Data["agents"][Counter]["last_connect"]
+            RealTime = time.strftime('%Y-%m-%d', time.localtime(Epoch))
+        except:
+            RealTime = "Never Connected"
+        Status = Data["agents"][Counter]["status"]
+
+        SaveMyStuff += "{},{},{},{},{}\n".format(Name, Platform, Distro, Status, RealTime)
+
+        Counter += 1
+    print(SaveMyStuff)
+    print(Counter)
+    input("\npress enter to continue")
+    menu()
 
 
 #### ^^^^^ USEFUL ####
