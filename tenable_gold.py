@@ -440,6 +440,51 @@ def GetAssetsInGroup():
     input("\npress enter to continue")
     menu()
 
+    
+## this needs to get cleaned up...but too lazy to do it right now :'D
+def GetLinuxAssets():
+    URL = 'https://cloud.tenable.com/workbenches/assets?date_range=30&filter.0.quality=match&filter.0.filter=operating_system&filter.0.value=Linux&filter.search_type=and'
+    Data = (requests.get(URL, headers=tenable_header)).json()
+    Counter = 0
+    #print(Data)
+    KeyTerms = {"jboss": 0, "ngnix": 0, "iis": 0, "apache": 0, "tomcat": 0}
+
+    for i in Data["assets"]:
+        AssetID = Data["assets"][Counter]["id"]
+        #print(AssetID)
+        AssetURL = 'https://cloud.tenable.com/workbenches/assets/{}/vulnerabilities'.format(AssetID)
+        VulnData = (requests.get(AssetURL, headers=tenable_header)).json()
+
+        # print(Data["vulnerabilities"][1]["plugin_name"])
+        LocalTerms = {"jboss": 0, "ngnix": 0, "iis": 0, "apache": 0, "tomcat": 0}
+        VulnCounter = 0
+        try:
+            for Vulns in VulnData["vulnerabilities"]:
+
+                try:
+                    PluginName = (VulnData["vulnerabilities"][VulnCounter]["plugin_name"]).lower()
+                except:
+                    PluginName = ""
+                for Term in KeyTerms:
+                    if Term in PluginName:
+                        print(Term)
+                        LocalTerms[Term] += 1
+                VulnCounter += 1
+            # print(LocalTerms)
+            for key in LocalTerms:
+                if LocalTerms[key] > 0:
+                    KeyTerms[key] += 1
+            print("...")
+        except:
+            print("error with this asset...")
+
+
+
+        Counter += 1
+        print(KeyTerms)
+    print(Counter)
+    
+    
 
 #### ^^^^^ USEFUL ####
 
