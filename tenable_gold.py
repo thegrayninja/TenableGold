@@ -1,11 +1,7 @@
 #github.com/thegrayninja
 #
 #
-#Current Version: 1.0.0
-#Version Notes: Added extra info to "view agent info"
-#
-#Version History
-#ver 1.0.0 - current version
+#versions are messed up...
 
 
 
@@ -14,33 +10,25 @@ import time, sys, os
 import subprocess, platform
 
 from auth_file import tenable_header
+import HouseRequirements
+
 
 
 
 def main():
-    CheckPythonVersion()
+    HouseRequirements.CheckPythonVersion()
     CreateFolderStructure()
     print("\n\n\n\n\t\tWelcome To Tenable - Gold!\n")
     print("\t\tThe Number 1 API Utility for Tenable.io")
     menu()
 
 
-def GetOSVersion():
-    return(platform.system())
 
-
-def CheckPythonVersion():
-    PyVerTuple = sys.version_info[:1]
-    if PyVerTuple[0] > 2:
-        return 0
-    else:
-        print("\n\nPlease run Python 3.x or newer\n")
-        sys.exit(1)
 
 
 
 def CreateFolderStructure():
-    if "Windows" in GetOSVersion():
+    if "Windows" in HouseRequirements.GetOSVersion():
         SaveFolder1 = r'.\Docs'
         if not os.path.exists(SaveFolder1):
             os.makedirs(SaveFolder1)
@@ -67,6 +55,7 @@ def menu():
     print("4\tCheck if Agents are Installed against a list of hosts")
     print("5\tGenerate Vuln Report")
     print("6\tView Agents in Group")
+    print("7\tGet Hostnames for Agents")
 
     print("\nq\tQuit  (or CTRL+C at any time)\n\n")
     UserResponse = input("Please make your selection: ")
@@ -83,6 +72,8 @@ def menu():
         GenerateVulnReport()
     elif UserResponse == "6":
         GetAssetsInGroup()
+    elif UserResponse == "7":
+        GetHostnamesMenu()
 
     elif UserResponse == "q":
         sys.exit(0)
@@ -329,12 +320,16 @@ def DeleteStaleAgents():
 
 def DeleteAgents(AgentIDs):
     DeletedCount = 0
-    try:
-        for i in AgentIDs:
-            print(i)
+    for i in AgentIDs:
+        try:
+            #print(i)
+            url = "https://cloud.tenable.com/scanners/1/agents/{}".format(i)
+            requests.delete(url, headers=tenable_header)
+            print("deleted {}".format(i))
             DeletedCount += 1
-    except:
-        print("error deleting agents")
+            time.sleep(.3)
+        except:
+            print("error deleting {}".format(i))
     print("Deleted Agents: %s" % DeletedCount)
 
 
@@ -403,7 +398,7 @@ def GenerateVulnReport():
 
 
         Counter += 1
-    if "Windows" in GetOSVersion():
+    if "Windows" in HouseRequirements.GetOSVersion():
         FileName = ".\Reports\CDE-%s.csv" % time.strftime('%Y-%m-%d', time.localtime())
         SaveAgentsToFile(FinalReport, FileName)
     else:
@@ -416,7 +411,7 @@ def GenerateVulnReport():
 def GetAssetsInGroup():
     ShowGroups()
     GroupID = input("\nPlease enter the GroupID: ")
-    URL = "https://cloud.tenable.com/scanners/1/agent-groups/{}".format(GroupID)
+    URL = "https://cloud.tenable.com/scanners/1/agent-groups/{}?limit=5000".format(GroupID)
     Data = (requests.get(URL, headers=tenable_header)).json()
     Counter = 0
 
@@ -435,57 +430,81 @@ def GetAssetsInGroup():
         SaveMyStuff += "{},{},{},{},{}\n".format(Name, Platform, Distro, Status, RealTime)
 
         Counter += 1
+    SaveAgentsToFile(SaveMyStuff, "assets_in_group.csv")
     print(SaveMyStuff)
     print(Counter)
     input("\npress enter to continue")
     menu()
 
-    
-## this needs to get cleaned up...but too lazy to do it right now :'D
-def GetLinuxAssets():
-    URL = 'https://cloud.tenable.com/workbenches/assets?date_range=30&filter.0.quality=match&filter.0.filter=operating_system&filter.0.value=Linux&filter.search_type=and'
+
+
+def GetHostnamesMenu():
+    print("""
+Available OS:
+1.\tWindows Servers
+2.\tWindows Desktop
+3.\tLinux
+4.\tRedHat
+5.\tMac
+""")
+    UserInput = input("Make your selection: ")
+    Input = ""
+    try:
+        Input = int(UserInput)
+    except:
+        print("Error. {} is not a number. Try again!\n".format(UserInput))
+        GetHostnamesMenu()
+
+    if Input == 1:
+        FilterString = "Windows%20Server"
+        OSString = "Windows_Server"
+        GetHostnameAgents(OSString, FilterString)
+    else:
+        print("I'm sorry, but the option {} is not available at this time.\nPlease try a different option.\n".format(UserInput))
+        GetHostnamesMenu()
+
+
+
+
+def GetHostnameAgents(OSString, FilterString):
+    URL = 'https://cloud.tenable.com/workbenches/assets?date_range=30&filter.0.quality=match&filter.0.filter=operating_system&filter.0.value={}&filter.search_type=and'.format(FilterString)
     Data = (requests.get(URL, headers=tenable_header)).json()
     Counter = 0
+    TotalAssets = 0
+    Assets = ""
     #print(Data)
-    KeyTerms = {"jboss": 0, "ngnix": 0, "iis": 0, "apache": 0, "tomcat": 0}
-
     for i in Data["assets"]:
-        AssetID = Data["assets"][Counter]["id"]
-        #print(AssetID)
-        AssetURL = 'https://cloud.tenable.com/workbenches/assets/{}/vulnerabilities'.format(AssetID)
-        VulnData = (requests.get(AssetURL, headers=tenable_header)).json()
-
-        # print(Data["vulnerabilities"][1]["plugin_name"])
-        LocalTerms = {"jboss": 0, "ngnix": 0, "iis": 0, "apache": 0, "tomcat": 0}
-        VulnCounter = 0
-        try:
-            for Vulns in VulnData["vulnerabilities"]:
-
-                try:
-                    PluginName = (VulnData["vulnerabilities"][VulnCounter]["plugin_name"]).lower()
-                except:
-                    PluginName = ""
-                for Term in KeyTerms:
-                    if Term in PluginName:
-                        print(Term)
-                        LocalTerms[Term] += 1
-                VulnCounter += 1
-            # print(LocalTerms)
-            for key in LocalTerms:
-                if LocalTerms[key] > 0:
-                    KeyTerms[key] += 1
-            print("...")
-        except:
-            print("error with this asset...")
-
-
-
+        HasAgent = Data["assets"][Counter]["has_agent"]
+        if HasAgent == True:
+            #AssetID = Data["assets"][Counter]["id"]
+            AssetHostname = Data["assets"][Counter]["agent_name"]
+            AssetNetBiosName = Data["assets"][Counter]["netbios_name"]
+            if AssetHostname != []:
+                Assets += "{}\n".format(AssetHostname)
+            else:
+                Assets += "{}\n".format(AssetNetBiosName)
+            TotalAssets += 1
         Counter += 1
-        print(KeyTerms)
-    print(Counter)
-    
-    
 
+    Assets = Assets.replace("['", "")
+    Assets = Assets.replace("']", "")
+    Assets = Assets.replace("'", "")
+    Assets = Assets.replace(", ", "\n")
+    #print(Assets)
+    try:
+        HouseRequirements.SaveToFile(Assets, "tenable_{}.txt".format(OSString))
+        print("saved to {}".format("tenable_{}.txt".format(OSString)))
+    except:
+        print("Erorr saving file")
+
+    # URL = 'https://cloud.tenable.com/workbenches/assets?date_range=30&filter.0.quality=match&filter.0.filter=operating_system&filter.0.value=Linux&filter.search_type=and'
+    # Data = (requests.get(URL, headers=tenable_header)).json()
+    # Counter = 0
+    # #print(Data)
+    # for i in Data["assets"]:
+    #     #print(Data["assets"][Counter]["id"])
+    #     Counter += 1
+    # print(Counter)
 #### ^^^^^ USEFUL ####
 
 #### .... vvvvvv .... NEEDS TESTING ####
@@ -620,7 +639,7 @@ def ReturnAssetsWithoutAgents():
         Counter += 1
     print(TotalAssetsWithoutAgents)
 
-    OSVersion = GetOSVersion()
+    OSVersion = HouserequiRements.GetOSVersion()
 
     if "Windows" in OSVersion:
         SaveFolder = r'.\Docs'
